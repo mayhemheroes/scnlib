@@ -839,12 +839,11 @@ namespace scn {
         value_type value;
 
         auto range = wrap(SCN_FWD(r));
-        using char_type = typename decltype(range)::char_type;
 
-        auto args = make_args_for(range, 1, value);
+        auto a = make_args_for(range, 1, value);
         auto ctx = make_context(SCN_MOVE(range));
         auto pctx = make_parse_context(1, ctx.locale());
-        auto cargs = basic_args<char_type>{args};
+        auto cargs = args{a};
 
         while (true) {
             if (c.size() == c.max_size()) {
@@ -915,7 +914,6 @@ namespace scn {
         value_type value;
 
         auto range = wrap(SCN_FWD(r));
-        using char_type = typename decltype(range)::char_type;
 
         auto args = make_args_for(range, 1, value);
         auto ctx = make_context(SCN_MOVE(range));
@@ -927,7 +925,7 @@ namespace scn {
             }
 
             auto pctx = make_parse_context(1, ctx.locale());
-            auto err = visit(ctx, pctx, basic_args<char_type>{args});
+            auto err = visit(ctx, pctx, {args});
             if (!err) {
                 if (err == error::end_of_range) {
                     break;

@@ -27,11 +27,9 @@ namespace scn {
 
     // args.h
 
-    template <typename CharT>
-    class basic_arg;
-    template <typename CharT>
-    class basic_args;
-    template <typename CharT, typename... Args>
+    class arg;
+    class args;
+    template <typename... Args>
     class arg_store;
 
     template <typename T>

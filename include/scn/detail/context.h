@@ -86,9 +86,8 @@ namespace scn {
         return {SCN_MOVE(r), SCN_FWD(loc)};
     }
 
-    template <typename CharT>
-    auto get_arg(const basic_args<CharT>& args, std::ptrdiff_t id)
-        -> expected<basic_arg<CharT>>
+    inline auto get_arg(const args& args, std::ptrdiff_t id)
+        -> expected<arg>
     {
         auto a = args.get(id);
         if (!a) {
@@ -97,25 +96,23 @@ namespace scn {
         }
         return a;
     }
-    template <typename CharT, typename ParseCtx>
-    auto get_arg(const basic_args<CharT>& args,
-                 ParseCtx& pctx,
-                 std::ptrdiff_t id) -> expected<basic_arg<CharT>>
+    template <typename ParseCtx>
+    auto get_arg(const args& args, ParseCtx& pctx, std::ptrdiff_t id)
+        -> expected<arg>
     {
         return pctx.check_arg_id(id) ? get_arg(args, id)
                                      : error(error::invalid_format_string,
                                              "Argument id out of range");
     }
     template <typename CharT, typename ParseCtx>
-    auto get_arg(const basic_args<CharT>&, ParseCtx&, basic_string_view<CharT>)
-        -> expected<basic_arg<CharT>>
+    auto get_arg(const args&, ParseCtx&, basic_string_view<CharT>)
+        -> expected<arg>
     {
         return error(error::invalid_format_string, "Argument id out of range");
     }
 
-    template <typename CharT, typename ParseCtx>
-    auto next_arg(const basic_args<CharT>& args, ParseCtx& pctx)
-        -> expected<basic_arg<CharT>>
+    template <typename ParseCtx>
+    auto next_arg(const args& args, ParseCtx& pctx) -> expected<arg>
     {
         return get_arg(args, pctx.next_arg_id());
     }

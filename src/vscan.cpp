@@ -31,41 +31,37 @@ namespace scn {
 
 #if SCN_INCLUDE_SOURCE_DEFINITIONS
 
-#define SCN_VSCAN_DEFINE(Range, WrappedAlias, CharAlias)                  \
-    vscan_result<detail::vscan_macro::WrappedAlias> vscan(                \
-        detail::vscan_macro::WrappedAlias&& range,                        \
-        basic_string_view<detail::vscan_macro::CharAlias> fmt,            \
-        basic_args<detail::vscan_macro::CharAlias>&& args)                \
-    {                                                                     \
-        return detail::vscan_boilerplate(SCN_MOVE(range), fmt,            \
-                                         SCN_MOVE(args));                 \
-    }                                                                     \
-                                                                          \
-    vscan_result<detail::vscan_macro::WrappedAlias> vscan_default(        \
-        detail::vscan_macro::WrappedAlias&& range, int n_args,            \
-        basic_args<detail::vscan_macro::CharAlias>&& args)                \
-    {                                                                     \
-        return detail::vscan_boilerplate_default(SCN_MOVE(range), n_args, \
-                                                 SCN_MOVE(args));         \
-    }                                                                     \
-                                                                          \
-    vscan_result<detail::vscan_macro::WrappedAlias> vscan_localized(      \
-        detail::vscan_macro::WrappedAlias&& range,                        \
-        basic_locale_ref<detail::vscan_macro::CharAlias>&& loc,           \
-        basic_string_view<detail::vscan_macro::CharAlias> fmt,            \
-        basic_args<detail::vscan_macro::CharAlias>&& args)                \
-    {                                                                     \
-        return detail::vscan_boilerplate_localized(                       \
-            SCN_MOVE(range), SCN_MOVE(loc), fmt, SCN_MOVE(args));         \
-    }                                                                     \
-                                                                          \
-    error vscan_usertype(                                                 \
-        basic_context<detail::vscan_macro::WrappedAlias>& ctx,            \
-        basic_string_view<detail::vscan_macro::CharAlias> f,              \
-        basic_args<detail::vscan_macro::CharAlias>&& args)                \
-    {                                                                     \
-        auto pctx = make_parse_context(f, ctx.locale());                  \
-        return visit(ctx, pctx, SCN_MOVE(args));                          \
+#define SCN_VSCAN_DEFINE(Range, WrappedAlias, CharAlias)                    \
+    vscan_result<detail::vscan_macro::WrappedAlias> vscan(                  \
+        detail::vscan_macro::WrappedAlias&& range,                          \
+        basic_string_view<detail::vscan_macro::CharAlias> fmt, args&& args) \
+    {                                                                       \
+        return detail::vscan_boilerplate(SCN_MOVE(range), fmt,              \
+                                         SCN_MOVE(args));                   \
+    }                                                                       \
+                                                                            \
+    vscan_result<detail::vscan_macro::WrappedAlias> vscan_default(          \
+        detail::vscan_macro::WrappedAlias&& range, int n_args, args&& args) \
+    {                                                                       \
+        return detail::vscan_boilerplate_default(SCN_MOVE(range), n_args,   \
+                                                 SCN_MOVE(args));           \
+    }                                                                       \
+                                                                            \
+    vscan_result<detail::vscan_macro::WrappedAlias> vscan_localized(        \
+        detail::vscan_macro::WrappedAlias&& range,                          \
+        basic_locale_ref<detail::vscan_macro::CharAlias>&& loc,             \
+        basic_string_view<detail::vscan_macro::CharAlias> fmt, args&& args) \
+    {                                                                       \
+        return detail::vscan_boilerplate_localized(                         \
+            SCN_MOVE(range), SCN_MOVE(loc), fmt, SCN_MOVE(args));           \
+    }                                                                       \
+                                                                            \
+    error vscan_usertype(                                                   \
+        basic_context<detail::vscan_macro::WrappedAlias>& ctx,              \
+        basic_string_view<detail::vscan_macro::CharAlias> f, args&& args)   \
+    {                                                                       \
+        auto pctx = make_parse_context(f, ctx.locale());                    \
+        return visit(ctx, pctx, SCN_MOVE(args));                            \
     }
 
     SCN_VSCAN_DEFINE(string_view, string_view_wrapped, string_view_char)
