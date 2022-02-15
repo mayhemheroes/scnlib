@@ -297,7 +297,7 @@ namespace scn {
         }
 
     private:
-        constexpr arg(detail::value v, detail::type t) noexcept
+        SCN_CONSTEXPR14 arg(detail::value v, detail::type t) noexcept
             : m_value(v), m_type(t)
         {
         }
