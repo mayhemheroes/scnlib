@@ -32,7 +32,7 @@ jobs:
           
           cmake -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-                ..
+                $GITHUB_WORKSPACE
           make -k -j2
 
       - name: Run fuzzers

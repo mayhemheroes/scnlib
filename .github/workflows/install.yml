@@ -44,7 +44,7 @@ jobs:
       - name: Build install test
         run: |
           mkdir ${{ runner.workspace }}/install_test
-          cp $GITHUB_WORKSPACE/test/install_test/* ${{ runner.workspace }}/install_test
+          cp $GITHUB_WORKSPACE/test/install/* ${{ runner.workspace }}/install_test
           cd ${{ runner.workspace }}/install_test
           
           mkdir build
