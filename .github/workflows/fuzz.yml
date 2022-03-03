@@ -37,6 +37,7 @@ jobs:
 
       - name: Run fuzzers
         run: |
+          cd ${{ runner.workspace }}/build
           fuzzers="bool char float format getline int roundtrip string"
           for fuzzer in $fuzzers; do
             ./test/fuzz/run-fuzz.sh $fuzzer -max_total_time=10
