@@ -1,0 +1,54 @@
+name: Install
+
+on: [ push, pull_request ]
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        use_bundled_fastfloat: [ ON, OFF ]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Checkout fast_float
+        uses: actions/checkout@v3
+        with:
+          repository: fastfloat/fast_float
+          path: ${{ runner.workspace }}/fast_float
+
+      - name: Build fast_float
+          cd ${{ runner.workspace }}/fast_float
+          mkdir build
+          cd build
+          
+          cmake ..
+          make -k -j2
+          sudo make install
+
+      - name: Build scnlib
+        run: |
+          cd ${{ runner.workspace }}/build
+          cmake -DSCN_TESTS=OFF -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
+                -DSCN_USE_BUNDLED_FAST_FLOAT=${{ matrix.use_bundled_fastfloat }} \
+                ..
+          make -k -j2
+          sudo make install
+
+      - name: Build install test
+        run: |
+          mkdir ${{ runner.workspace }}/install_test
+          cp ${{ runner.workspace }}/test/install_test/* ${{ runner.workspace }}/install
+          cd ${{ runner.workspace }}/install_test
+          
+          mkdir build
+          cd build
+          
+          cmake ..
+          make
+          
+          ./scn-install-test || return 1

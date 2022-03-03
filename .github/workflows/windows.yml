@@ -12,7 +12,8 @@ jobs:
         platform: [ Win32, x64 ]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 

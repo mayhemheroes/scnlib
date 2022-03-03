@@ -1,0 +1,44 @@
+name: Fuzz
+
+on: [ push, pull_request ]
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Create Build Environment
+      run: |
+        mkdir ${{ runner.workspace }}/install
+        cd ${{ runner.workspace }}/install
+        
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get --allow-unauthenticated -yq update
+        
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 13
+
+    - name: Build
+      env:
+        CXX: clang++-13
+      run: |
+        mkdir ${{ runner.workspace }}/build
+        cd ${{ runner.workspace }}/build
+        
+        cmake -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              ..
+        make -k -j2
+
+    - name: Run fuzzers
+      run: |
+        fuzzers="bool char float format getline int roundtrip string"
+        for fuzzer in $fuzzers; do
+          ./test/fuzz/run-fuzz.sh $fuzzer -max_total_time=10
+        done

@@ -12,18 +12,18 @@ jobs:
         std: [ 11, 14, 17, 20 ]
         cxx: [ clang++, g++-11 ]
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Create Build Environment
-        run: mkdir ${{ runner.workspace }}/build
-
       - name: Configure
-        working-directory: ${{ runner.workspace }}/build
         run: |
+          mkdir ${{ runner.workspace }}/build
+          cd ${{ runner.workspace }}/build
+          
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
-                -DSCN_WERROR=ON $GITHUB_WORKSPACE
+                -DSCN_WERROR=ON ..
 
       - name: Build
         working-directory: ${{ runner.workspace }}/build
@@ -31,4 +31,4 @@ jobs:
 
       - name: Test
         working-directory: ${{ runner.workspace }}/build
-        run: ctest -C ${{ matrix.build_type }} --output-on-failure
+        run: ctest --output-on-failure

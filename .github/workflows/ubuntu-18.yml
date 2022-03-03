@@ -15,7 +15,8 @@ jobs:
         std: [ 11, 14 ]
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -33,20 +34,18 @@ jobs:
           sudo apt-get --allow-unauthenticated -yq update
           
           ${APT_INSTALL} ${{ matrix.cxx }}
-          
-          cd ${{ runner.workspace }}
-          mkdir ${{ runner.workspace }}/build
 
       - name: Build
-        working-directory: ${{ runner.workspace }}/build
         env:
           CXX: ${{ matrix.cxx }}
           STD: ${{ matrix.std }}
         shell: bash
         run: |
+          mkdir ${{ runner.workspace }}/build
+          cd ${{ runner.workspace }}/build
+          
           cmake -DSCN_BUILD_LOCALIZED_TESTS=ON -DSCN_WERROR=ON -DCMAKE_BUILD_TYPE=Debug \
                 -DCMAKE_CXX_STANDARD=$STD \
-                $GITHUB_WORKSPACE
+                ..
           make -k -j2
           ctest --output-on-failure
-          make clean
