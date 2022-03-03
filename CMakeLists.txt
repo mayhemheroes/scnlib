@@ -153,7 +153,7 @@ if (SCN_INSTALL)
 
     install(DIRECTORY
             "${CMAKE_CURRENT_SOURCE_DIR}/src/"
-            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/scn/detail")
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/scn/src")
 
     install(FILES
             "${CMAKE_CURRENT_SOURCE_DIR}/README.md"

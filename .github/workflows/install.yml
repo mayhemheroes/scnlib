@@ -9,6 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         use_bundled_fastfloat: [ ON, OFF ]
+        header_only: [ ON, OFF ]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -50,7 +51,7 @@ jobs:
           mkdir build
           cd build
           
-          cmake ..
+          cmake -DSCN_HEADER_ONLY=${{ matrix.header_only }} ..
           make
           
           ./scn-install-test || return 1
