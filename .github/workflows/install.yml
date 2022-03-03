@@ -14,17 +14,16 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-          path: main
 
       - name: Checkout fast_float
         uses: actions/checkout@v3
         with:
           repository: fastfloat/fast_float
-          path: ${{ runner.workspace }}/fast_float
+          path: fast_float
 
       - name: Build fast_float
         run: |
-          cd ${{ runner.workspace }}/fast_float
+          cd $GITHUB_WORKSPACE/fast_float
           mkdir build
           cd build
           
@@ -34,6 +33,7 @@ jobs:
 
       - name: Build scnlib
         run: |
+          mkdir ${{ runner.workspace }}/build
           cd ${{ runner.workspace }}/build
           cmake -DSCN_TESTS=OFF -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
                 -DSCN_USE_BUNDLED_FAST_FLOAT=${{ matrix.use_bundled_fastfloat }} \
@@ -44,7 +44,7 @@ jobs:
       - name: Build install test
         run: |
           mkdir ${{ runner.workspace }}/install_test
-          cp ${{ runner.workspace }}/test/install_test/* ${{ runner.workspace }}/install
+          cp $GITHUB_WORKSPACE/test/install_test/* ${{ runner.workspace }}/install_test
           cd ${{ runner.workspace }}/install_test
           
           mkdir build
