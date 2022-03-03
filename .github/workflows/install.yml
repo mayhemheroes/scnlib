@@ -22,6 +22,7 @@ jobs:
           path: ${{ runner.workspace }}/fast_float
 
       - name: Build fast_float
+        run: |
           cd ${{ runner.workspace }}/fast_float
           mkdir build
           cd build
@@ -35,7 +36,7 @@ jobs:
           cd ${{ runner.workspace }}/build
           cmake -DSCN_TESTS=OFF -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
                 -DSCN_USE_BUNDLED_FAST_FLOAT=${{ matrix.use_bundled_fastfloat }} \
-                ..
+                $GITHUB_WORKSPACE
           make -k -j2
           sudo make install
 

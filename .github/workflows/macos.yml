@@ -23,7 +23,7 @@ jobs:
           cd ${{ runner.workspace }}/build
           
           cmake -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
-                -DSCN_WERROR=ON ..
+                -DSCN_WERROR=ON $GITHUB_WORKSPACE
 
       - name: Build
         working-directory: ${{ runner.workspace }}/build
