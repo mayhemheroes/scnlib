@@ -95,7 +95,7 @@ function(generate_header_only_target target_name)
     add_library(${target_name} INTERFACE)
     target_include_directories(${target_name} INTERFACE
             "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include;${PROJECT_SOURCE_DIR}/src>"
-            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR};${CMAKE_INSTALL_INCLUDEDIR}/scn/src>")
     target_compile_definitions(${target_name} INTERFACE
             -DSCN_HEADER_ONLY=1)
     target_compile_features(${target_name} INTERFACE cxx_std_11)
