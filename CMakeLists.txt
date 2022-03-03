@@ -141,7 +141,7 @@ if (SCN_INSTALL)
     write_basic_package_version_file(
             "${CMAKE_CURRENT_BINARY_DIR}/scnConfigVersion.cmake"
             VERSION ${SCN_VERSION}
-            COMPATIBILITY ExactVersion)
+            COMPATIBILITY SameMajorVersion)
     configure_file(
             "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake.in"
             "${CMAKE_CURRENT_BINARY_DIR}/scnConfig.cmake"

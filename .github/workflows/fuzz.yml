@@ -3,7 +3,7 @@ name: Fuzz
 on: [ push, pull_request ]
 
 jobs:
-  install:
+  fuzz:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,7 +30,7 @@ jobs:
           mkdir ${{ runner.workspace }}/build
           cd ${{ runner.workspace }}/build
           
-          cmake -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
+          cmake -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF -DSCN_BUILD_FUZZING=ON \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
                 $GITHUB_WORKSPACE
           make -k -j2
