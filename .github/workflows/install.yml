@@ -96,6 +96,8 @@ jobs:
 
       - name: Build install test
         run: |
+          cd ${{ runner.workspace }}/install_test
+          
           mkdir build
           cd build
           cmake -DSCN_USE_BUNDLED_FASTFLOAT=${{ matrix.use_bundled_fastfloat }} \
