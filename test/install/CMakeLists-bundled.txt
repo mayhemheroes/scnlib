@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.2.3)
+project(scn-install-test CXX)
+
+add_subdirectory(scn)
+
+add_executable(scn-install-test install-test.cpp)
+if (SCN_HEADER_ONLY)
+    target_link_libraries(scn-install-test PUBLIC scn::scn-header-only)
+else ()
+    target_link_libraries(scn-install-test PUBLIC scn::scn)
+endif ()

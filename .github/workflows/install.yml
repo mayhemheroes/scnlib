@@ -3,12 +3,11 @@ name: Install
 on: [ push, pull_request ]
 
 jobs:
-  install:
+  separate-install:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        use_bundled_fastfloat: [ ON, OFF ]
         header_only: [ ON, OFF ]
     steps:
       - name: Checkout repo
@@ -37,7 +36,6 @@ jobs:
           mkdir ${{ runner.workspace }}/build
           cd ${{ runner.workspace }}/build
           cmake -DSCN_TESTS=OFF -DSCN_EXAMPLES=OFF -DSCN_BENCHMARKS=OFF \
-                -DSCN_USE_BUNDLED_FAST_FLOAT=${{ matrix.use_bundled_fastfloat }} \
                 $GITHUB_WORKSPACE
           make -k -j2
           sudo make install
@@ -47,11 +45,62 @@ jobs:
           mkdir ${{ runner.workspace }}/install_test
           cp $GITHUB_WORKSPACE/test/install/* ${{ runner.workspace }}/install_test
           cd ${{ runner.workspace }}/install_test
+          mv CMakeLists-separate.txt CMakeLists.txt
           
           mkdir build
           cd build
           
           cmake -DSCN_HEADER_ONLY=${{ matrix.header_only }} ..
           make
+          
+          ./scn-install-test || return 1
+
+  bundled-library:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        use_bundled_fastfloat: [ ON, OFF ]
+        header_only: [ ON, OFF ]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Checkout fast_float
+        uses: actions/checkout@v3
+        with:
+          repository: fastfloat/fast_float
+          path: fast_float
+
+      - name: Build fast_float
+        run: |
+          if [[ ${{ matrix.use_bundled_fastfloat }} = "OFF" ]]; then
+            cd $GITHUB_WORKSPACE/fast_float
+            mkdir build
+            cd build
+            
+            cmake ..
+            make -k -j2
+            sudo make install
+          fi
+
+      - name: Setup environment
+        run: |
+          mkdir ${{ runner.workspace }}/install_test
+          cd ${{ runner.workspace }}/install_test
+          ln -s $GITHUB_WORKSPACE scnlib
+          cp $GITHUB_WORKSPACE/test/install/* .
+          mv CMakeLists-bundled.txt CMakeLists.txt
+
+      - name: Build install test
+        run: |
+          mkdir build
+          cd build
+          cmake -DSCN_USE_BUNDLED_FASTFLOAT=${{ matrix.use_bundled_fastfloat }} \
+                -DSCN_HEADER_ONLY=${{ matrix.header_only }} \
+                $GITHUB_WORKSPACE
+          make -k -j2
           
           ./scn-install-test || return 1
