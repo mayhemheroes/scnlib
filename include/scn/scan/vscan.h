@@ -19,6 +19,7 @@
 #define SCN_SCAN_VSCAN_H
 
 #include "../detail/context.h"
+#include "../detail/erased_range.h"
 #include "../detail/file.h"
 #include "../detail/parse_context.h"
 #include "../detail/visitor.h"
