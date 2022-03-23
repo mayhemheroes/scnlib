@@ -43,6 +43,7 @@ make_test(locale locale.cpp)
 make_test(std-string-view std_string_view.cpp)
 make_test(pmr-string pmr_string.cpp)
 make_test(wrap wrap.cpp)
+make_test(erased erased.cpp)
 make_test(utf8 utf8.cpp)
 make_test(utf16 utf16.cpp)
 
