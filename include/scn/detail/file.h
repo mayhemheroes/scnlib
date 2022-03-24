@@ -281,6 +281,8 @@ namespace scn {
         using sentinel = iterator;
         using char_type = CharT;
 
+        using skip_erasure_tag = void;
+
         /**
          * Construct an empty file.
          * Reading not possible: valid() is `false`

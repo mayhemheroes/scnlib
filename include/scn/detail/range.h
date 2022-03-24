@@ -21,6 +21,7 @@
 #include "../ranges/ranges.h"
 #include "../util/algorithm.h"
 #include "../util/memory.h"
+#include "erased_range.h"
 #include "error.h"
 #include "vectored.h"
 
@@ -58,26 +59,6 @@ namespace scn {
             static constexpr auto& reset_begin_iterator =
                 static_const<detail::_reset_begin_iterator::fn>::value;
         }
-
-        template <typename Iterator, typename = void>
-        struct extract_char_type;
-        template <typename Iterator>
-        struct extract_char_type<
-            Iterator,
-            typename std::enable_if<std::is_integral<
-                polyfill_2a::iter_value_t<Iterator>>::value>::type> {
-            using type = polyfill_2a::iter_value_t<Iterator>;
-        };
-        template <typename Iterator>
-        struct extract_char_type<
-            Iterator,
-            void_t<
-                typename std::enable_if<!std::is_integral<
-                    polyfill_2a::iter_value_t<Iterator>>::value>::type,
-                typename polyfill_2a::iter_value_t<Iterator>::success_type>> {
-            using type =
-                typename polyfill_2a::iter_value_t<Iterator>::success_type;
-        };
 
         template <typename Range, typename = void>
         struct is_direct_impl
@@ -462,12 +443,13 @@ namespace scn {
             mutable difference_type m_read{0};
         };
 
-        namespace _wrap {
+        namespace _erase_if_necessary {
             struct fn {
             private:
                 template <typename Range>
-                static range_wrapper<Range> impl(const range_wrapper<Range>& r,
-                                                 priority_tag<4>) noexcept
+                static const range_wrapper<Range>& impl(
+                    const range_wrapper<Range>& r,
+                    priority_tag<4>) noexcept
                 {
                     return r;
                 }
@@ -475,7 +457,121 @@ namespace scn {
                 static range_wrapper<Range> impl(range_wrapper<Range>&& r,
                                                  priority_tag<4>) noexcept
                 {
-                    return SCN_MOVE(r);
+                    return r;
+                }
+
+                template <typename CharT, std::size_t N>
+                static scn::basic_string_view<
+                    typename std::remove_cv<CharT>::type>
+                impl(CharT (&s)[N], priority_tag<3>) noexcept
+                {
+                    return {s, s + N - 1};
+                }
+
+                template <typename CharT>
+                static scn::basic_string_view<CharT> impl(
+                    scn::basic_string_view<CharT> s,
+                    priority_tag<2>) noexcept
+                {
+                    return s;
+                }
+
+#if SCN_HAS_STRING_VIEW
+                template <typename CharT>
+                static scn::basic_string_view<CharT> impl(
+                    std::basic_string_view<CharT> s,
+                    priority_tag<2>) noexcept
+                {
+                    return {s.data(), s.size()};
+                }
+#endif
+
+                template <typename CharT>
+                static scn::basic_string_view<
+                    typename std::remove_cv<CharT>::type>
+                impl(span<CharT> s, priority_tag<2>) noexcept
+                {
+                    return {s.data(), s.size()};
+                }
+
+                template <typename CharT>
+                static const std::basic_string<CharT>& impl(
+                    const std::basic_string<CharT>& str,
+                    priority_tag<2>) noexcept
+                {
+                    return str;
+                }
+                template <typename CharT>
+                static std::basic_string<CharT> impl(
+                    std::basic_string<CharT>&& str,
+                    priority_tag<2>) noexcept
+                {
+                    return str;
+                }
+
+                template <typename T,
+                          typename std::enable_if<std::is_same<
+                              void,
+                              typename remove_cvref_t<T>::skip_erasure_tag>::
+                                                      value>::type* = nullptr>
+                static T& impl(T& r, priority_tag<1>) noexcept
+                {
+                    return r;
+                }
+                template <
+                    typename T,
+                    typename std::enable_if<
+                        std::is_move_constructible<T>::value &&
+                        std::is_same<void,
+                                     typename remove_cvref_t<
+                                         T>::skip_erasure_tag>::value>::type* =
+                        nullptr>
+                static T impl(T&& r, priority_tag<1>) noexcept(
+                    std::is_nothrow_move_constructible<T>::value)
+                {
+                    return r;
+                }
+
+                template <typename T,
+                          typename std::enable_if<!_has_range_wrapper_marker<
+                              remove_cvref_t<T>>::value>::type* = nullptr>
+                static auto impl(T&& r, priority_tag<0>) noexcept(
+                    noexcept(erase_range(SCN_FWD(r))))
+                    -> decltype(erase_range(SCN_FWD(r)))
+                {
+                    return erase_range(SCN_FWD(r));
+                }
+
+            public:
+                template <typename T>
+                auto operator()(T&& r) const
+                    noexcept(noexcept(fn::impl(SCN_FWD(r), priority_tag<4>{})))
+                        -> decltype(fn::impl(SCN_FWD(r), priority_tag<4>{}))
+                {
+                    return fn::impl(SCN_FWD(r), priority_tag<4>{});
+                }
+            };
+        }  // namespace _erase_if_necessary
+        namespace {
+            static constexpr auto& erase_if_necessary =
+                detail::static_const<detail::_erase_if_necessary::fn>::value;
+        }
+
+        namespace _wrap {
+            struct fn {
+            private:
+                template <typename Range>
+                static const range_wrapper<Range>& impl(
+                    const range_wrapper<Range>& r,
+                    priority_tag<4>) noexcept
+                {
+                    return r;
+                }
+                template <typename Range>
+                static range_wrapper<Range> impl(range_wrapper<Range>&& r,
+                                                 priority_tag<4>) noexcept
+                {
+                    return r;
                 }
 
                 template <typename Range>
@@ -483,16 +579,6 @@ namespace scn {
                     noexcept(SCN_FWD(r).wrap())) -> decltype(SCN_FWD(r).wrap())
                 {
                     return SCN_FWD(r).wrap();
-                }
-
-                template <typename CharT, std::size_t N>
-                static auto impl(CharT (&str)[N], priority_tag<2>) noexcept
-                    -> range_wrapper<
-                        basic_string_view<typename std::remove_cv<CharT>::type>>
-                {
-                    return {
-                        basic_string_view<typename std::remove_cv<CharT>::type>(
-                            str, str + N - 1)};
                 }
 
                 template <typename CharT, typename Allocator>
@@ -518,23 +604,6 @@ namespace scn {
                                                        Allocator>>
                 {
                     return {SCN_MOVE(str)};
-                }
-
-#if SCN_HAS_STRING_VIEW
-                template <typename CharT>
-                static auto impl(const std::basic_string_view<CharT>& str,
-                                 priority_tag<1>) noexcept
-                    -> range_wrapper<basic_string_view<CharT>>
-                {
-                    return {basic_string_view<CharT>{str.data(), str.size()}};
-                }
-#endif
-                template <typename T,
-                          typename CharT = typename std::remove_const<T>::type>
-                static auto impl(span<T> s, priority_tag<2>) noexcept
-                    -> range_wrapper<basic_string_view<CharT>>
-                {
-                    return {basic_string_view<CharT>{s.data(), s.size()}};
                 }
 
                 template <typename Range,
@@ -568,10 +637,13 @@ namespace scn {
             public:
                 template <typename Range>
                 auto operator()(Range&& r) const
-                    noexcept(noexcept(fn::impl(SCN_FWD(r), priority_tag<4>{})))
-                        -> decltype(fn::impl(SCN_FWD(r), priority_tag<4>{}))
+                    noexcept(noexcept(fn::impl(erase_if_necessary(SCN_FWD(r)),
+                                               priority_tag<4>{})))
+                        -> decltype(fn::impl(erase_if_necessary(SCN_FWD(r)),
+                                             priority_tag<4>{}))
                 {
-                    return fn::impl(SCN_FWD(r), priority_tag<4>{});
+                    return fn::impl(erase_if_necessary(SCN_FWD(r)),
+                                    priority_tag<4>{});
                 }
             };
         }  // namespace _wrap

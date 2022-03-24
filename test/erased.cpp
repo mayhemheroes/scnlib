@@ -75,3 +75,22 @@ TEST_CASE("wrapped")
     CHECK(s.value().size() == 3);
     CHECK(std::string{s.value().begin(), s.value().end()} == "foo");
 }
+
+TEST_CASE("scan")
+{
+    auto source = scn::erase_range(std::string{"123 foo"});
+
+    int i{};
+    auto ret = scn::scan(source, "{}", i);
+    CHECK(ret);
+    CHECK(i == 123);
+
+    std::string str{};
+    ret = scn::scan(ret.range(), "{}", str);
+    CHECK(ret);
+    CHECK(str == "foo");
+
+    ret = scn::scan(ret.range(), "{}", i);
+    CHECK(!ret);
+    CHECK(ret.error() == scn::error::end_of_range);
+}

@@ -19,11 +19,34 @@
 #define SCN_DETAIL_ERASED_RANGE_H
 
 #include "../ranges/ranges.h"
+#include "../util/expected.h"
+#include "../util/unique_ptr.h"
+#include "vectored.h"
 
 namespace scn {
     SCN_BEGIN_NAMESPACE
 
     namespace detail {
+        template <typename Iterator, typename = void>
+        struct extract_char_type;
+        template <typename Iterator>
+        struct extract_char_type<
+            Iterator,
+            typename std::enable_if<std::is_integral<
+                polyfill_2a::iter_value_t<Iterator>>::value>::type> {
+            using type = polyfill_2a::iter_value_t<Iterator>;
+        };
+        template <typename Iterator>
+        struct extract_char_type<
+            Iterator,
+            void_t<
+                typename std::enable_if<!std::is_integral<
+                    polyfill_2a::iter_value_t<Iterator>>::value>::type,
+                typename polyfill_2a::iter_value_t<Iterator>::success_type>> {
+            using type =
+                typename polyfill_2a::iter_value_t<Iterator>::success_type;
+        };
+
         template <typename CharT>
         class basic_erased_range_impl_base {
         public:
@@ -372,6 +395,7 @@ namespace scn {
         using sentinel = iterator;
 
         using erased_range_marker = void;
+        using skip_erasure_tag = void;
 
         basic_erased_range() = default;
 

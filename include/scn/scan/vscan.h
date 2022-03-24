@@ -196,6 +196,10 @@ namespace scn {
     SCN_VSCAN_DECLARE(std::wstring, wstring_wrapped, wstring_char);
     SCN_VSCAN_DECLARE(file&, file_ref_wrapped, file_ref_char);
     SCN_VSCAN_DECLARE(wfile&, wfile_ref_wrapped, wfile_ref_char);
+    SCN_VSCAN_DECLARE(erased_range&, erased_range_wrapped, erased_range_char);
+    SCN_VSCAN_DECLARE(werased_range&,
+                      werased_range_wrapped,
+                      werased_range_char);
 
 #endif  // !SCN_HEADER_ONLY
 
