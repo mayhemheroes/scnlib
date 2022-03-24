@@ -267,8 +267,8 @@ namespace scn {
 
         public:
             using value_type = expected<CharT>;
-            using reference = void;
-            using pointer = void;
+            using reference = expected<CharT>&;
+            using pointer = expected<CharT>*;
             using difference_type = std::ptrdiff_t;
             using iterator_category = std::bidirectional_iterator_tag;
 
@@ -350,8 +350,9 @@ namespace scn {
             }
 
         private:
-            iterator(basic_erased_range<CharT>& r, std::ptrdiff_t i)
-                : m_range(&r), m_index(i)
+            iterator(const basic_erased_range<CharT>& r, std::ptrdiff_t i)
+                : m_range(const_cast<basic_erased_range<CharT>*>(&r)),
+                  m_index(i)
             {
             }
 
@@ -383,11 +384,11 @@ namespace scn {
         {
         }
 
-        iterator begin()
+        iterator begin() const
         {
             return iterator{*this, 0};
         }
-        sentinel end()
+        sentinel end() const
         {
             return {};
         }

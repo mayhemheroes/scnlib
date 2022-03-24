@@ -384,9 +384,9 @@ namespace scn {
      * If the range does not satisfy `contiguous_range`, returns an empty
      * `span`.
      */
-    template <
-        typename WrappedRange,
-        typename std::enable_if<WrappedRange::is_contiguous>::type* = nullptr>
+    template <typename WrappedRange,
+              typename std::enable_if<
+                  WrappedRange::provides_buffer_access>::type* = nullptr>
     expected<span<const typename detail::extract_char_type<
         typename WrappedRange::iterator>::type>>
     read_all_zero_copy(WrappedRange& r)
@@ -394,13 +394,11 @@ namespace scn {
         if (r.begin() == r.end()) {
             return error(error::end_of_range, "EOF");
         }
-        auto s = make_span(r.data(), static_cast<size_t>(r.size()));
-        r.advance(r.size());
-        return s;
+        return r.get_buffer_and_advance();
     }
-    template <
-        typename WrappedRange,
-        typename std::enable_if<!WrappedRange::is_contiguous>::type* = nullptr>
+    template <typename WrappedRange,
+              typename std::enable_if<
+                  !WrappedRange::provides_buffer_access>::type* = nullptr>
     expected<span<const typename detail::extract_char_type<
         typename WrappedRange::iterator>::type>>
     read_all_zero_copy(WrappedRange& r)

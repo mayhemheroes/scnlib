@@ -45,3 +45,33 @@ TEST_CASE("erased")
     CHECK(!ret);
     CHECK(ret.error() == scn::error::end_of_range);
 }
+
+template <typename T>
+struct debug {
+};
+
+TEST_CASE("wrapped")
+{
+    auto source = scn::erase_range(std::string{"123 foo"});
+    auto wrapped = scn::wrap(SCN_MOVE(source));
+
+    std::string str{};
+    auto it = std::back_inserter(str);
+    auto is_space = scn::detail::make_is_space_predicate(
+        scn::make_default_locale_ref<char>(), false);
+
+    auto ret = scn::read_until_space(wrapped, it, is_space, false);
+    CHECK(ret);
+    CHECK(str == "123");
+
+    // space
+    unsigned char buf[4] = {0};
+    auto cp = scn::read_code_point(wrapped, scn::make_span(buf, 4));
+    CHECK(cp);
+    CHECK(cp.value().cp == scn::make_code_point(' '));
+
+    auto s = scn::read_all_zero_copy(wrapped);
+    CHECK(s);
+    CHECK(s.value().size() == 3);
+    CHECK(std::string{s.value().begin(), s.value().end()} == "foo");
+}
