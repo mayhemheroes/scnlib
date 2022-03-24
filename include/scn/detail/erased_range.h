@@ -178,8 +178,8 @@ namespace scn {
                 //  -> i - m_read
                 auto chars_to_read = i - m_read;
                 if (chars_to_read <= 0) {
-                    if (i > m_read) {
-                        m_read = i;
+                    if (i >= static_cast<std::ptrdiff_t>(m_buffer.size())) {
+                        return {error::end_of_range, "EOF"};
                     }
                     return {};
                 }
@@ -208,6 +208,10 @@ namespace scn {
                         return e;
                     }
                 }
+                if (m_read < i + 1 &&
+                    static_cast<std::ptrdiff_t>(m_buffer.size()) >= i + 1) {
+                    m_read = i + 1;
+                }
                 return m_buffer[static_cast<size_t>(i)];
             }
 
@@ -227,7 +231,7 @@ namespace scn {
             bool do_is_current_at_end() const override
             {
                 return m_current == ranges::end(m_range) &&
-                       m_read == m_buffer.size();
+                       m_read == static_cast<std::ptrdiff_t>(m_buffer.size());
             }
 
             error do_advance_current(std::ptrdiff_t n) override
