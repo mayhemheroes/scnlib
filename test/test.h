@@ -53,12 +53,11 @@ inline std::basic_string<wchar_t> widen<wchar_t>(const std::string& str)
 
 template <typename CharT, typename Input, typename Fmt, typename... T>
 auto do_scan(Input&& i, Fmt f, T&... a)
-    -> decltype(scn::scan(widen<CharT>(std::forward<Input>(i)),
+    -> decltype(scn::scan(widen<CharT>(SCN_FWD(i)),
                           widen<CharT>(f).c_str(),
                           a...))
 {
-    return scn::scan(widen<CharT>(std::forward<Input>(i)),
-                     widen<CharT>(f).c_str(), a...);
+    return scn::scan(widen<CharT>(SCN_FWD(i)), widen<CharT>(f).c_str(), a...);
 }
 
 template <typename CharT>

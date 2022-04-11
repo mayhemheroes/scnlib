@@ -342,7 +342,7 @@ namespace scn {
     SCN_NODISCARD auto scan_list(Range&& r, Container& c)
         -> detail::scan_result_for_range<Range>
     {
-        auto range = wrap(SCN_FWD(r));
+        auto&& range = wrap(r);
         auto ctx = make_context(SCN_MOVE(range));
         using char_type = typename decltype(ctx)::char_type;
 
@@ -387,7 +387,7 @@ namespace scn {
                                     scan_list_options<CharT> options)
         -> detail::scan_result_for_range<Range>
     {
-        auto range = wrap(SCN_FWD(r));
+        auto&& range = wrap(r);
         auto ctx = make_context(SCN_MOVE(range));
 
         auto err = detail::scan_list_impl(ctx, false, c, options);
@@ -431,7 +431,7 @@ namespace scn {
                                            scan_list_options<CharT> options)
         -> detail::scan_result_for_range<Range>
     {
-        auto range = wrap(SCN_FWD(r));
+        auto&& range = wrap(r);
         using char_type = typename decltype(range)::char_type;
         auto locale = make_locale_ref<char_type>(loc);
         auto ctx = make_context(SCN_MOVE(range), SCN_MOVE(locale));

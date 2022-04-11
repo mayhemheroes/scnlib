@@ -294,6 +294,7 @@ namespace scn {
             using pointer = expected<CharT>*;
             using difference_type = std::ptrdiff_t;
             using iterator_category = std::bidirectional_iterator_tag;
+            using range_type = basic_erased_range<CharT>;
 
             iterator() = default;
 
@@ -395,7 +396,6 @@ namespace scn {
         using sentinel = iterator;
 
         using erased_range_marker = void;
-        using skip_erasure_tag = void;
 
         basic_erased_range() = default;
 
@@ -408,9 +408,19 @@ namespace scn {
         {
         }
 
+        basic_erased_range(iterator b, sentinel) {
+            if (!b.m_range) {
+                return;
+            }
+
+            auto&& range = SCN_MOVE(*b.m_range);
+            m_impl = SCN_MOVE(range.m_impl);
+            m_begin_index = b.m_index;
+        }
+
         iterator begin() const
         {
-            return iterator{*this, 0};
+            return iterator{*this, m_begin_index};
         }
         sentinel end() const
         {
@@ -430,6 +440,7 @@ namespace scn {
     private:
         detail::unique_ptr<detail::basic_erased_range_impl_base<char_type>>
             m_impl{nullptr};
+        std::ptrdiff_t m_begin_index{0};
     };
 
     using erased_range = basic_erased_range<char>;
@@ -441,6 +452,55 @@ namespace scn {
     {
         return {SCN_FWD(r)};
     }
+
+    template <typename CharT>
+    basic_erased_range<CharT>& erase_range(basic_erased_range<CharT>& r)
+    {
+        return r;
+    }
+    template <typename CharT>
+    basic_erased_range<CharT> erase_range(basic_erased_range<CharT>&& r)
+    {
+        return SCN_MOVE(r);
+    }
+
+    template <typename CharT>
+    class basic_erased_view {
+    public:
+        using range_type = basic_erased_range<CharT>;
+        using char_type = CharT;
+        using value_type = expected<CharT>;
+        using iterator = typename range_type::iterator;
+        using sentinel = typename range_type::sentinel;
+
+        basic_erased_view() = default;
+        basic_erased_view(const range_type& range) : m_range(&range) {}
+
+        iterator begin() const
+        {
+            if (!m_range) {
+                return {};
+            }
+            return m_range->begin();
+        }
+
+        iterator end() const
+        {
+            return {};
+        }
+
+        span<const char_type> get_buffer(iterator b, std::size_t max_size) const
+        {
+            SCN_EXPECT(m_range);
+            return m_range->get_buffer(b, max_size);
+        }
+
+    private:
+        const range_type* m_range{nullptr};
+    };
+
+    using erased_view = basic_erased_view<char>;
+    using werased_view = basic_erased_view<wchar_t>;
 
     SCN_END_NAMESPACE
 }  // namespace scn

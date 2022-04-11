@@ -281,8 +281,6 @@ namespace scn {
         using sentinel = iterator;
         using char_type = CharT;
 
-        using skip_erasure_tag = void;
-
         /**
          * Construct an empty file.
          * Reading not possible: valid() is `false`
@@ -401,6 +399,15 @@ namespace scn {
                 max_size,
                 static_cast<size_t>(ranges::distance(begin, m_buffer.end())));
             return {begin, begin + static_cast<std::ptrdiff_t>(end_diff)};
+        }
+
+        detail::range_wrapper<basic_file<CharT>&> wrap() &
+        {
+            return {*this};
+        }
+        detail::range_wrapper<basic_file<CharT>> wrap() &&
+        {
+            return {SCN_MOVE(*this)};
         }
 
     private:

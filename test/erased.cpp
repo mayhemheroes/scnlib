@@ -18,9 +18,87 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "test.h"
 
+TEST_CASE("erase_if_necessary")
+{
+    SUBCASE("lvalue range_wrapper -> not")
+    {
+        auto wrapped = scn::wrap("123 456");
+        auto r = scn::detail::erase_if_necessary(wrapped);
+
+        static_assert(std::is_same<decltype(r), decltype(wrapped)>::value, "");
+    }
+    SUBCASE("rvalue range_wrapper -> not")
+    {
+        auto wrapped = scn::wrap("123 456");
+        auto r = scn::detail::erase_if_necessary(SCN_MOVE(wrapped));
+
+        static_assert(std::is_same<decltype(r), decltype(wrapped)>::value, "");
+    }
+    SUBCASE("string literal -> string_view")
+    {
+        auto r = scn::detail::erase_if_necessary("123 456");
+
+        static_assert(std::is_same<decltype(r), scn::string_view>::value, "");
+    }
+    SUBCASE("string_view -> string_view")
+    {
+        auto r = scn::detail::erase_if_necessary(scn::string_view{"123 456"});
+
+        static_assert(std::is_same<decltype(r), scn::string_view>::value, "");
+    }
+    SUBCASE("span -> string_view")
+    {
+        auto str = scn::string_view{"123 456"};
+        auto r = scn::detail::erase_if_necessary(
+            scn::span<const char>{str.data(), str.size()});
+
+        static_assert(std::is_same<decltype(r), scn::string_view>::value, "");
+    }
+    SUBCASE("lvalue string -> string_view")
+    {
+        auto str = std::string{"123 456"};
+        auto r = scn::detail::erase_if_necessary(str);
+
+        static_assert(std::is_same<decltype(r), scn::string_view>::value, "");
+    }
+    SUBCASE("rvalue string -> string")
+    {
+        auto r = scn::detail::erase_if_necessary(std::string{"123 456"});
+
+        static_assert(std::is_same<decltype(r), std::string>::value, "");
+    }
+    SUBCASE("lvalue file -> lvalue file")
+    {
+        auto f = scn::file{};
+        auto& r = scn::detail::erase_if_necessary(f);
+
+        static_assert(std::is_same<decltype(r), scn::file&>::value, "");
+    }
+    SUBCASE("rvalue file -> rvalue file")
+    {
+        auto r = scn::detail::erase_if_necessary(scn::file{});
+
+        static_assert(std::is_same<decltype(r), scn::file>::value, "");
+    }
+    SUBCASE("lvalue other -> erased")
+    {
+        auto s = get_deque<char>("123");
+        auto r = scn::detail::erase_if_necessary(s);
+
+        static_assert(std::is_same<decltype(r), scn::erased_range>::value, "");
+    }
+    SUBCASE("rvalue other -> erased")
+    {
+        auto r = scn::detail::erase_if_necessary(get_deque<char>("123"));
+
+        static_assert(std::is_same<decltype(r), scn::erased_range>::value, "");
+    }
+}
+
 TEST_CASE("erased")
 {
-    auto r = scn::erase_range(std::string{"abc"});
+    auto source = std::string{"abc"};
+    auto r = scn::erase_range(source);
 
     auto it = r.begin();
     auto ret = *it;
@@ -46,14 +124,11 @@ TEST_CASE("erased")
     CHECK(ret.error() == scn::error::end_of_range);
 }
 
-template <typename T>
-struct debug {
-};
-
 TEST_CASE("wrapped")
 {
-    auto source = scn::erase_range(std::string{"123 foo"});
-    auto wrapped = scn::wrap(SCN_MOVE(source));
+    auto source = std::string{"123 foo"};
+    auto range = scn::erase_range(source);
+    auto wrapped = scn::wrap(source);
 
     std::string str{};
     auto it = std::back_inserter(str);
@@ -76,9 +151,15 @@ TEST_CASE("wrapped")
     CHECK(std::string{s.value().begin(), s.value().end()} == "foo");
 }
 
+static_assert(scn::custom_ranges::view<scn::string_view>::value, "");
+static_assert(!scn::custom_ranges::view<std::string>::value, "");
+static_assert(SCN_CHECK_CONCEPT(scn::ranges::view<scn::string_view>), "");
+static_assert(SCN_CHECK_CONCEPT(!scn::ranges::view<std::string>), "");
+
 TEST_CASE("scan")
 {
-    auto source = scn::erase_range(std::string{"123 foo"});
+    auto source = std::string{"123 foo"};
+    auto range = scn::erase_range(source);
 
     int i{};
     auto ret = scn::scan(source, "{}", i);

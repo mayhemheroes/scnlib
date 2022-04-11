@@ -64,7 +64,7 @@ namespace scn {
             basic_parse_context<typename context_type::locale_type>;
         using char_type = typename range_type::char_type;
 
-        auto range = wrap(SCN_FWD(r));
+        auto&& range = wrap(r);
         auto scanfn = [&range, &f](Args&... a) {
             auto args = make_args<context_type, parse_context_type>(a...);
             return vscan(SCN_MOVE(range), basic_string_view<char_type>(f),
@@ -100,7 +100,7 @@ namespace scn {
         using parse_context_type =
             basic_empty_parse_context<typename context_type::locale_type>;
 
-        auto range = wrap(SCN_FWD(r));
+        auto&& range = wrap(r);
         auto scanfn = [&range](Args&... a) {
             auto args = make_args<context_type, parse_context_type>(a...);
             return vscan_default(SCN_MOVE(range),

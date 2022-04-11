@@ -446,10 +446,18 @@ namespace scn {
         namespace _erase_if_necessary {
             struct fn {
             private:
+                template <typename CharT>
+                static range_wrapper<scn::basic_string_view<CharT>> impl(
+                    range_wrapper<std::basic_string<CharT>> r,
+                    priority_tag<5>) noexcept
+                {
+                    return {scn::basic_string_view<CharT>{
+                        r.data(), static_cast<size_t>(r.size())}};
+                }
+
                 template <typename Range>
-                static const range_wrapper<Range>& impl(
-                    const range_wrapper<Range>& r,
-                    priority_tag<4>) noexcept
+                static range_wrapper<Range>& impl(range_wrapper<Range>& r,
+                                                  priority_tag<4>) noexcept
                 {
                     return r;
                 }
@@ -495,11 +503,11 @@ namespace scn {
                 }
 
                 template <typename CharT>
-                static const std::basic_string<CharT>& impl(
-                    const std::basic_string<CharT>& str,
+                static scn::basic_string_view<CharT> impl(
+                    std::basic_string<CharT>& str,
                     priority_tag<2>) noexcept
                 {
-                    return str;
+                    return {str.data(), str.size()};
                 }
                 template <typename CharT>
                 static std::basic_string<CharT> impl(
@@ -510,26 +518,19 @@ namespace scn {
                 }
 
                 template <typename T,
-                          typename std::enable_if<std::is_same<
-                              void,
-                              typename remove_cvref_t<T>::skip_erasure_tag>::
-                                                      value>::type* = nullptr>
+                          typename = decltype(SCN_DECLVAL(T&).wrap())>
                 static T& impl(T& r, priority_tag<1>) noexcept
                 {
                     return r;
                 }
-                template <
-                    typename T,
-                    typename std::enable_if<
-                        std::is_move_constructible<T>::value &&
-                        std::is_same<void,
-                                     typename remove_cvref_t<
-                                         T>::skip_erasure_tag>::value>::type* =
-                        nullptr>
+                template <typename T,
+                          typename = decltype(SCN_DECLVAL(T &&).wrap()),
+                          typename std::enable_if<std::is_move_constructible<
+                              T>::value>::type* = nullptr>
                 static T impl(T&& r, priority_tag<1>) noexcept(
                     std::is_nothrow_move_constructible<T>::value)
                 {
-                    return r;
+                    return SCN_MOVE(r);
                 }
 
                 template <typename T,
@@ -545,10 +546,10 @@ namespace scn {
             public:
                 template <typename T>
                 auto operator()(T&& r) const
-                    noexcept(noexcept(fn::impl(SCN_FWD(r), priority_tag<4>{})))
-                        -> decltype(fn::impl(SCN_FWD(r), priority_tag<4>{}))
+                    noexcept(noexcept(fn::impl(SCN_FWD(r), priority_tag<5>{})))
+                        -> decltype(fn::impl(SCN_FWD(r), priority_tag<5>{}))
                 {
-                    return fn::impl(SCN_FWD(r), priority_tag<4>{});
+                    return fn::impl(SCN_FWD(r), priority_tag<5>{});
                 }
             };
         }  // namespace _erase_if_necessary
@@ -561,9 +562,8 @@ namespace scn {
             struct fn {
             private:
                 template <typename Range>
-                static const range_wrapper<Range>& impl(
-                    const range_wrapper<Range>& r,
-                    priority_tag<4>) noexcept
+                static range_wrapper<Range>& impl(range_wrapper<Range>& r,
+                                                  priority_tag<4>) noexcept
                 {
                     return r;
                 }
@@ -571,7 +571,7 @@ namespace scn {
                 static range_wrapper<Range> impl(range_wrapper<Range>&& r,
                                                  priority_tag<4>) noexcept
                 {
-                    return r;
+                    return SCN_MOVE(r);
                 }
 
                 template <typename Range>
@@ -607,10 +607,10 @@ namespace scn {
                 }
 
                 template <typename Range,
-                          typename = typename std::enable_if<
-                              SCN_CHECK_CONCEPT(ranges::view<Range>)>::type>
+                          typename = typename std::enable_if<SCN_CHECK_CONCEPT(
+                              ranges::view<remove_cvref_t<Range>>)>::type>
                 static auto impl(Range r, priority_tag<1>) noexcept
-                    -> range_wrapper<Range>
+                    -> range_wrapper<remove_cvref_t<Range>>
                 {
                     return {r};
                 }
@@ -659,7 +659,8 @@ namespace scn {
 
     template <typename Range>
     struct range_wrapper_for {
-        using type = decltype(wrap(SCN_DECLVAL(Range)));
+        using type = decltype(wrap(
+            SCN_DECLVAL(typename std::remove_reference<Range>::type&)));
     };
     template <typename Range>
     using range_wrapper_for_t = typename range_wrapper_for<Range>::type;

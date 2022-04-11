@@ -114,6 +114,13 @@ namespace scn {
     template <typename Context, typename ParseCtx>
     class basic_visitor;
 
+    // erased_range.h
+
+    template <typename CharT>
+    class basic_erased_range;
+    template <typename CharT>
+    class basic_erased_view;
+
     // file.h
 
     template <typename CharT>

@@ -61,6 +61,10 @@ namespace std::ranges {
     inline constexpr bool enable_view<::scn::span<T>> = true;
 }  // namespace std
 
+#ifdef SCN_CHECK_CONCEPT
+#undef SCN_CHECK_CONCEPT
+#endif
+
 #define SCN_CHECK_CONCEPT(C) C
 #endif
 

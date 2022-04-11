@@ -135,7 +135,7 @@ namespace scn {
     SCN_NODISCARD auto ignore_until(Range&& r, Until until)
         -> detail::scan_result_for_range<Range>
     {
-        auto wrapped = wrap(SCN_FWD(r));
+        auto&& wrapped = wrap(r);
         auto err = detail::ignore_until_impl(wrapped, until);
         if (!err) {
             auto e = wrapped.reset_to_rollback_point();
@@ -170,7 +170,7 @@ namespace scn {
                                       Until until)
         -> detail::scan_result_for_range<Range>
     {
-        auto wrapped = wrap(SCN_FWD(r));
+        auto&& wrapped = wrap(r);
         auto err = detail::ignore_until_n_impl(wrapped, n, until);
         if (!err) {
             auto e = wrapped.reset_to_rollback_point();

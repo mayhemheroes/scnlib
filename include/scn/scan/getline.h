@@ -137,7 +137,7 @@ namespace scn {
     SCN_NODISCARD auto getline(Range&& r, String& str, Until until)
         -> detail::scan_result_for_range<Range>
     {
-        auto wrapped = wrap(SCN_FWD(r));
+        auto&& wrapped = wrap(r);
         auto err = getline_impl(wrapped, str, until);
         if (!err) {
             auto e = wrapped.reset_to_rollback_point();

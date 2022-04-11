@@ -86,7 +86,7 @@ namespace scn {
         using generic_scan_result_for_range = decltype(detail::wrap_result(
             SCN_DECLVAL(Error),
             SCN_DECLVAL(detail::range_tag<Range>),
-            SCN_DECLVAL(range_wrapper_for_t<Range>)));
+            SCN_MOVE(SCN_DECLVAL(range_wrapper_for_t<Range>))));
         template <typename Range>
         using scan_result_for_range =
             generic_scan_result_for_range<wrapped_error, Range>;

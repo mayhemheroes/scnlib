@@ -30,12 +30,16 @@ namespace scn {
 
     /**
      * \tparam OriginalRange The type of the range passed to the scanning
-     * function \param result Return value of `vscan` \return Result object
+     * function
+     *
+     * \param result Return value of `vscan`
+     *
+     * \return Result object
      *
      * \code{.cpp}
      * template <typename Range, typename... Args>
      * auto scan(Range&& r, string_view f, Args&... a) {
-     *     auto range = scn::wrap(std::forward<Range>(r));
+     *     auto&& range = scn::wrap(r);
      *     auto args = scn::make_args_for(range, f, a...);
      *     auto ret = scn::vscan(std::move(range), f, {args});
      *     return scn::make_scan_result<Range>(std::move(ret));
@@ -63,7 +67,7 @@ namespace scn {
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
 
-            auto range = wrap(SCN_FWD(r));
+            auto&& range = wrap(r);
             auto format = detail::to_format(f);
             auto args = make_args_for(range, format, a...);
             auto ret = vscan(SCN_MOVE(range), format, {args});
@@ -79,7 +83,7 @@ namespace scn {
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
 
-            auto range = wrap(SCN_FWD(r));
+            auto&& range = wrap(r);
             auto format = static_cast<int>(sizeof...(Args));
             auto args = make_args_for(range, format, a...);
             auto ret = vscan_default(SCN_MOVE(range), format, {args});
@@ -101,7 +105,7 @@ namespace scn {
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
 
-            auto range = wrap(SCN_FWD(r));
+            auto&& range = wrap(r);
             auto format = detail::to_format(f);
             SCN_CLANG_PUSH_IGNORE_UNDEFINED_TEMPLATE
             auto locale =
@@ -169,7 +173,7 @@ namespace scn {
     SCN_NODISCARD auto scan_default(Range&& r, Args&... a)
         -> detail::scan_result_for_range<Range>
     {
-        return detail::scan_boilerplate_default(std::forward<Range>(r), a...);
+        return detail::scan_boilerplate_default(SCN_FWD(r), a...);
     }
 #endif
 
@@ -213,8 +217,7 @@ namespace scn {
                                       Args&... a)
         -> detail::scan_result_for_range<Range>
     {
-        return detail::scan_boilerplate_localized(loc, std::forward<Range>(r),
-                                                  f, a...);
+        return detail::scan_boilerplate_localized(loc, SCN_FWD(r), f, a...);
     }
 #endif
 
@@ -245,7 +248,7 @@ namespace scn {
         -> detail::generic_scan_result_for_range<expected<T>, Range>
     {
         T value;
-        auto range = wrap(SCN_FWD(r));
+        auto&& range = wrap(r);
         auto args = make_args_for(range, 1, value);
         auto ret = vscan_default(SCN_MOVE(range), 1, {args});
         if (ret.err) {

@@ -69,8 +69,6 @@ namespace scn {
 
     SCN_VSCAN_DEFINE(string_view, string_view_wrapped, string_view_char)
     SCN_VSCAN_DEFINE(wstring_view, wstring_view_wrapped, wstring_view_char)
-    SCN_VSCAN_DEFINE(std::string, string_wrapped, string_char)
-    SCN_VSCAN_DEFINE(std::wstring, wstring_wrapped, wstring_char)
     SCN_VSCAN_DEFINE(file&, file_ref_wrapped, file_ref_char)
     SCN_VSCAN_DEFINE(wfile&, wfile_ref_wrapped, wfile_ref_char)
     SCN_VSCAN_DEFINE(erased_range&, erased_range_wrapped, erased_range_char)

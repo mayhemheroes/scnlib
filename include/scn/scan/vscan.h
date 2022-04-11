@@ -162,7 +162,7 @@ namespace scn {
         return visit(ctx, pctx, SCN_MOVE(args));
     }
 
-#if !defined(SCN_HEADER_ONLY) || !SCN_HEADER_ONLY
+#if SCN_INCLUDE_SOURCE_DEFINITIONS
 
 #define SCN_VSCAN_DECLARE(Range, WrappedAlias, CharAlias)                   \
     namespace detail {                                                      \
@@ -192,8 +192,6 @@ namespace scn {
 
     SCN_VSCAN_DECLARE(string_view, string_view_wrapped, string_view_char);
     SCN_VSCAN_DECLARE(wstring_view, wstring_view_wrapped, wstring_view_char);
-    SCN_VSCAN_DECLARE(std::string, string_wrapped, string_char);
-    SCN_VSCAN_DECLARE(std::wstring, wstring_wrapped, wstring_char);
     SCN_VSCAN_DECLARE(file&, file_ref_wrapped, file_ref_char);
     SCN_VSCAN_DECLARE(wfile&, wfile_ref_wrapped, wfile_ref_char);
     SCN_VSCAN_DECLARE(erased_range&, erased_range_wrapped, erased_range_char);
@@ -201,7 +199,7 @@ namespace scn {
                       werased_range_wrapped,
                       werased_range_char);
 
-#endif  // !SCN_HEADER_ONLY
+#endif  // SCN_INCLUDE_SOURCE_DEFINITIONS
 
     SCN_END_NAMESPACE
 }  // namespace scn

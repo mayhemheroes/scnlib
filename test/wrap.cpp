@@ -43,6 +43,26 @@ TEST_CASE("rvalue range_wrapper")
         "");
 }
 
+TEST_CASE("lvalue erased_range")
+{
+    auto source = scn::erase_range("123");
+    auto range = scn::wrap(source);
+
+    static_assert(
+        std::is_same<decltype(range),
+                     scn::detail::range_wrapper<scn::erased_range&>>::value,
+        "");
+}
+TEST_CASE("rvalue erased_range")
+{
+    auto range = scn::wrap(scn::erase_range("123"));
+
+    static_assert(
+        std::is_same<decltype(range),
+                     scn::detail::range_wrapper<scn::erased_range>>::value,
+        "");
+}
+
 // mapped_file has .wrap() member function
 TEST_CASE("lvalue mapped_file")
 {
@@ -80,6 +100,26 @@ TEST_CASE("wide string literal")
     static_assert(
         std::is_same<decltype(range),
                      scn::detail::range_wrapper<scn::wstring_view>>::value,
+        "");
+}
+
+TEST_CASE("lvalue string_view")
+{
+    auto source = scn::string_view{"123"};
+    auto range = scn::wrap(source);
+
+    static_assert(
+        std::is_same<decltype(range),
+                     scn::detail::range_wrapper<scn::string_view>>::value,
+        "");
+}
+TEST_CASE("rvalue string_view")
+{
+    auto range = scn::wrap(scn::string_view{"123"});
+
+    static_assert(
+        std::is_same<decltype(range),
+                     scn::detail::range_wrapper<scn::string_view>>::value,
         "");
 }
 
