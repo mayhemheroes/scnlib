@@ -277,9 +277,13 @@ namespace scn {
                 return *this;
             }
 
-            unwrapped_range_type reconstruct() const
+            const unwrapped_range_type& reconstruct() const&
             {
                 return this->range().range_underlying();
+            }
+            unwrapped_range_type reconstruct() &&
+            {
+                return SCN_MOVE(this->range()).range_underlying();
             }
         };
         template <typename WrappedRange, typename UnwrappedRange, typename Base>
@@ -393,6 +397,17 @@ namespace scn {
                                                    SCN_MOVE(range), TagT{});
         }
 
+        template <typename T>
+        struct is_range_wrapper_impl : std::false_type {
+        };
+        template <typename T>
+        struct is_range_wrapper_impl<range_wrapper<T>> : std::true_type {
+        };
+        template <typename T>
+        struct is_range_wrapper : is_range_wrapper_impl<remove_cvref_t<T>> {
+            using range_wrapper_type = T;
+        };
+
         namespace _wrap_result {
             /*
              * InputRange: view / lvalue / rvalue
@@ -419,66 +434,43 @@ namespace scn {
              */
             struct fn {
             private:
-                // Range = range_wrapper<ref>&
-                template <typename Error, typename Range>
+                template <typename Error,
+                          typename InputRange,
+                          typename InnerWrappedRange,
+                          typename IRW_Input = is_range_wrapper<InputRange>,
+                          typename std::enable_if<
+                              IRW_Input::value &&
+                              std::is_same<typename InputRange::value_type,
+                                           InnerWrappedRange>::value>::type* =
+                              nullptr>
                 static auto impl(Error e,
-                                 range_tag<range_wrapper<Range&>&>,
-                                 range_wrapper<Range&>&& range,
-                                 priority_tag<10>) noexcept
-                    -> intermediary_scan_result<range_wrapper<Range&>, Error>
-                {
-                    return {SCN_MOVE(e), SCN_MOVE(range)};
-                }
-                // Range = const range_wrapper<ref>&
-                template <typename Error, typename Range>
-                static auto impl(Error e,
-                                 range_tag<const range_wrapper<Range&>&>,
-                                 range_wrapper<Range&>&& range,
-                                 priority_tag<10>) noexcept
-                    -> intermediary_scan_result<range_wrapper<Range&>, Error>
-                {
-                    return {SCN_MOVE(e), SCN_MOVE(range)};
-                }
-                // Range = range_wrapper<ref>&&
-                template <typename Error, typename Range>
-                static auto impl(Error e,
-                                 range_tag<range_wrapper<Range&>>,
-                                 range_wrapper<Range&>&& range,
-                                 priority_tag<10>) noexcept
-                    -> intermediary_scan_result<range_wrapper<Range&>, Error>
+                                 range_tag<InputRange>,
+                                 range_wrapper<InnerWrappedRange>&& range,
+                                 priority_tag<11>)
+                    -> intermediary_scan_result<
+                        range_wrapper<InnerWrappedRange>,
+                        Error>
                 {
                     return {SCN_MOVE(e), SCN_MOVE(range)};
                 }
 
-                // Range = range_wrapper<non-ref>&
-                template <typename Error, typename Range>
+                template <
+                    typename Error,
+                    typename InputRange,
+                    typename InnerWrappedRange,
+                    typename InputRangeNoCVRef = remove_cvref_t<InputRange>,
+                    typename IRW_Input = is_range_wrapper<InputRange>,
+                    typename std::enable_if<IRW_Input::value>::type* = nullptr>
                 static auto impl(Error e,
-                                 range_tag<range_wrapper<Range>&>,
-                                 range_wrapper<Range>&& range,
-                                 priority_tag<9>) noexcept
-                    -> intermediary_scan_result<range_wrapper<Range>, Error>
+                                 range_tag<InputRange>,
+                                 range_wrapper<InnerWrappedRange>&& range,
+                                 priority_tag<10>)
+                    -> reconstructed_scan_result<InputRangeNoCVRef, Error>
                 {
-                    return {SCN_MOVE(e), SCN_MOVE(range)};
-                }
-                // Range = const range_wrapper<non-ref>&
-                template <typename Error, typename Range>
-                static auto impl(Error e,
-                                 range_tag<const range_wrapper<Range>&>,
-                                 range_wrapper<Range>&& range,
-                                 priority_tag<9>) noexcept
-                    -> intermediary_scan_result<range_wrapper<Range>, Error>
-                {
-                    return {SCN_MOVE(e), SCN_MOVE(range)};
-                }
-                // Range = range_wrapper<non-ref>&&
-                template <typename Error, typename Range>
-                static auto impl(Error e,
-                                 range_tag<range_wrapper<Range>>,
-                                 range_wrapper<Range>&& range,
-                                 priority_tag<9>) noexcept
-                    -> intermediary_scan_result<range_wrapper<Range>, Error>
-                {
-                    return {SCN_MOVE(e), SCN_MOVE(range)};
+                    return {SCN_MOVE(e), SCN_MOVE(range)
+                                             .template reconstruct_and_rewrap<
+                                                 typename InputRangeNoCVRef::
+                                                     range_nocvref_type>()};
                 }
 
                 // InputRange: view
@@ -565,7 +557,7 @@ namespace scn {
                                            CharT>::value>::type* = nullptr>
                 static auto impl(
                     Error e,
-                    range_tag<InputCharT(&&)[N]>,
+                    range_tag<InputCharT (&&)[N]>,
                     range_wrapper<basic_string_view<CharT>>&& range,
                     priority_tag<5>)
                     -> reconstructed_scan_result<
@@ -644,9 +636,8 @@ namespace scn {
                     range_tag<InputRange>,
                     range_wrapper<basic_string_view<CharT>>&& range,
                     priority_tag<2>)
-                    -> non_reconstructed_scan_result<range_wrapper<InputRange>,
-                                                     InputRange,
-                                                     Error>
+                    -> reconstructed_scan_result<range_wrapper<InputRange>,
+                                                 Error>
                 {
                     return {SCN_MOVE(e),
                             SCN_MOVE(range)
@@ -880,16 +871,16 @@ namespace scn {
                     noexcept(noexcept(impl(SCN_MOVE(e),
                                            tag,
                                            SCN_MOVE(range),
-                                           priority_tag<10>{})))
+                                           priority_tag<11>{})))
                         -> decltype(impl(SCN_MOVE(e),
                                          tag,
                                          SCN_MOVE(range),
-                                         priority_tag<10>{}))
+                                         priority_tag<11>{}))
                 {
                     static_assert(SCN_CHECK_CONCEPT(ranges::range<InputRange>),
                                   "Input needs to be a Range");
                     return impl(SCN_MOVE(e), tag, SCN_MOVE(range),
-                                priority_tag<10>{});
+                                priority_tag<11>{});
                 }
             };
         }  // namespace _wrap_result

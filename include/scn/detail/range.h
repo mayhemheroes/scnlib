@@ -301,9 +301,13 @@ namespace scn {
              * Note that `range_underlying().begin()` may not be equal to
              * `begin()`.
              */
-            const range_type& range_underlying() const noexcept
+            const range_type& range_underlying() const& noexcept
             {
                 return m_range.get();
+            }
+
+            range_type range_underlying() && noexcept {
+                return SCN_MOVE(m_range).get();
             }
 
             /**
@@ -465,7 +469,7 @@ namespace scn {
                 static range_wrapper<Range> impl(range_wrapper<Range>&& r,
                                                  priority_tag<4>) noexcept
                 {
-                    return r;
+                    return SCN_MOVE(r);
                 }
 
                 template <typename CharT, std::size_t N>
@@ -514,7 +518,7 @@ namespace scn {
                     std::basic_string<CharT>&& str,
                     priority_tag<2>) noexcept
                 {
-                    return str;
+                    return SCN_MOVE(str);
                 }
 
                 template <typename T,

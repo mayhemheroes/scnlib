@@ -47,11 +47,37 @@ TEST_CASE("string rvalue")
     CHECK(ret);
     CHECK(a == 123);
     CHECK(ret.reconstruct() == " 456");
-    static_assert(std::is_same<decltype(ret),
-                               scn::detail::non_reconstructed_scan_result<
-                                   scn::detail::range_wrapper<std::string>,
-                                   std::string, scn::wrapped_error>>::value,
-                  "");
+    static_assert(
+        std::is_same<decltype(ret), scn::detail::reconstructed_scan_result<
+                                        scn::detail::range_wrapper<std::string>,
+                                        scn::wrapped_error>>::value,
+        "");
+
+    {
+        // debug<decltype(ret.range())>{};
+        auto&& w = scn::wrap(ret.range());
+        // debug<decltype(w)>{};
+
+        int dummy;
+        auto dummy_args = scn::make_args_for(w, 1, dummy);
+        auto r = scn::vscan_default(SCN_MOVE(w), 1, {dummy_args});
+        // debug<decltype(r)>{};
+
+        static_assert(
+            scn::detail::is_range_wrapper<decltype(ret.range())>::value, "");
+        static_assert(
+            scn::detail::is_range_wrapper<
+                scn::detail::remove_cvref_t<decltype(ret.range())>>::value,
+            "");
+
+        using tag_type = scn::detail::range_tag<decltype(ret.range())>;
+        // auto res = scn::make_scan_result<decltype(ret.range())>(SCN_MOVE(r));
+        // debug<tag_type>{};
+        // debug<decltype(SCN_MOVE(r.range))>{};
+        auto res = scn::detail::wrap_result(scn::wrapped_error{r.err},
+                                            tag_type{}, SCN_MOVE(r.range));
+        // debug<decltype(res)>{};
+    }
 
     ret = scn::scan(ret.range(), "{}", a);
     CHECK(ret);
