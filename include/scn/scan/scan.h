@@ -48,12 +48,14 @@ namespace scn {
      */
     template <typename OriginalRange,
               typename Error = wrapped_error,
-              typename WrappedRange>
-    auto make_scan_result(vscan_result<WrappedRange> result)
+              typename PreparedRange,
+              typename ResultRange>
+    auto make_scan_result(PreparedRange& prepared,
+                          vscan_result<ResultRange> result)
         -> detail::scan_result_for_range<OriginalRange>
     {
         return detail::wrap_result(Error{result.err},
-                                   detail::range_tag<OriginalRange>{},
+                                   detail::range_tag<OriginalRange>{}, prepared,
                                    SCN_MOVE(result.range));
     }
 
@@ -67,11 +69,11 @@ namespace scn {
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
 
-            auto&& range = wrap(r);
+            auto range = prepare(r);
             auto format = detail::to_format(f);
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan(SCN_MOVE(range), format, {args});
-            return make_scan_result<Range>(SCN_MOVE(ret));
+            auto ret = vscan(range_for_vscan(range), format, {args});
+            return make_scan_result<Range>(range, SCN_MOVE(ret));
         }
 
         template <typename Range, typename... Args>
@@ -83,11 +85,11 @@ namespace scn {
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
 
-            auto&& range = wrap(r);
+            auto range = prepare(r);
             auto format = static_cast<int>(sizeof...(Args));
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan_default(SCN_MOVE(range), format, {args});
-            return make_scan_result<Range>(SCN_MOVE(ret));
+            auto ret = vscan_default(range_for_vscan(range), format, {args});
+            return make_scan_result<Range>(range, SCN_MOVE(ret));
         }
 
         template <typename Locale,
@@ -105,7 +107,7 @@ namespace scn {
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
 
-            auto&& range = wrap(r);
+            auto range = prepare(r);
             auto format = detail::to_format(f);
             SCN_CLANG_PUSH_IGNORE_UNDEFINED_TEMPLATE
             auto locale =
@@ -113,9 +115,9 @@ namespace scn {
             SCN_CLANG_POP_IGNORE_UNDEFINED_TEMPLATE
 
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan_localized(SCN_MOVE(range), SCN_MOVE(locale),
+            auto ret = vscan_localized(range_for_vscan(range), SCN_MOVE(locale),
                                        format, {args});
-            return make_scan_result<Range>(SCN_MOVE(ret));
+            return make_scan_result<Range>(range, SCN_MOVE(ret));
         }
 
     }  // namespace detail
@@ -248,16 +250,16 @@ namespace scn {
         -> detail::generic_scan_result_for_range<expected<T>, Range>
     {
         T value;
-        auto&& range = wrap(r);
+        auto range = prepare(r);
         auto args = make_args_for(range, 1, value);
-        auto ret = vscan_default(SCN_MOVE(range), 1, {args});
+        auto ret = vscan_default(range_for_vscan(range), 1, {args});
         if (ret.err) {
             return detail::wrap_result(expected<T>{value},
-                                       detail::range_tag<Range>{},
+                                       detail::range_tag<Range>{}, range,
                                        SCN_MOVE(ret.range));
         }
         return detail::wrap_result(expected<T>{ret.err},
-                                   detail::range_tag<Range>{},
+                                   detail::range_tag<Range>{}, range,
                                    SCN_MOVE(ret.range));
     }
 #endif

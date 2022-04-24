@@ -120,8 +120,7 @@ namespace scn {
                                                    pctx);
         }
 
-        struct monostate {
-        };
+        struct monostate {};
 
         template <typename Ctx>
         struct ctx_tag {
@@ -495,15 +494,18 @@ namespace scn {
         return {detail::ctx_tag<Context>(), detail::parse_ctx_tag<ParseCtx>(),
                 args...};
     }
-    template <typename WrappedRange,
+    template <typename PreparedRange,
               typename Format,
               typename... Args,
-              typename CharT = typename WrappedRange::char_type>
-    arg_store<CharT, Args...> make_args_for(WrappedRange&,
+              typename CharT = typename detail::extract_char_type<
+                  ranges::iterator_t<PreparedRange>>::type>
+    arg_store<CharT, Args...> make_args_for(PreparedRange&,
                                             Format,
                                             Args&... args)
     {
-        using context_type = basic_context<WrappedRange>;
+        using range_type =
+            decltype(wrap(range_for_vscan(SCN_DECLVAL(const PreparedRange&))));
+        using context_type = basic_context<range_type>;
         using parse_context_type =
             typename detail::parse_context_template_for_format<
                 Format>::template type<typename context_type::char_type>;

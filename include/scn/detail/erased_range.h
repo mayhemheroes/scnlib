@@ -126,7 +126,46 @@ namespace scn {
             return {ch};
         }
 
-        template <typename Range, typename CharT>
+        template <typename Range>
+        struct erased_range_storage_by_value {
+            Range m_range;
+
+            erased_range_storage_by_value(Range&& r) : m_range(SCN_MOVE(r)) {}
+
+            Range& get() &
+            {
+                return m_range;
+            }
+            const Range& get() const&
+            {
+                return m_range;
+            }
+            Range&& get() &&
+            {
+                return SCN_MOVE(m_range);
+            }
+        };
+
+        template <typename Range>
+        struct erased_range_storage_by_reference {
+            Range* m_range;
+
+            erased_range_storage_by_reference(Range& r)
+                : m_range(std::addressof(r))
+            {
+            }
+
+            Range& get()
+            {
+                return *m_range;
+            }
+            const Range& get() const
+            {
+                return *m_range;
+            }
+        };
+
+        template <typename StorageType, typename Range, typename CharT>
         class basic_erased_range_impl
             : public basic_erased_range_impl_base<CharT> {
             using base = basic_erased_range_impl_base<CharT>;
@@ -135,6 +174,7 @@ namespace scn {
             using char_type = CharT;
             using range_type = Range;
             using range_nocvref_type = remove_cvref_t<range_type>;
+            using range_storage_type = StorageType;
             using iterator = ranges::iterator_t<range_type>;
             using sentinel = ranges::sentinel_t<range_type>;
 
@@ -144,7 +184,7 @@ namespace scn {
                       typename std::enable_if<!_has_erased_range_impl_marker<
                           remove_cvref_t<R>>::value>::type* = nullptr>
             basic_erased_range_impl(R&& r)
-                : m_range{SCN_FWD(r)}, m_current{ranges::begin(m_range)}
+                : m_range{SCN_FWD(r)}, m_current{ranges::begin(m_range.get())}
             {
             }
 
@@ -155,7 +195,7 @@ namespace scn {
             basic_erased_range_impl(basic_erased_range_impl&& o)
                 : m_range{SCN_MOVE(o.m_range)},
                   m_buffer{SCN_MOVE(o.m_buffer)},
-                  m_current{ranges::begin(m_range)},
+                  m_current{ranges::begin(m_range.get())},
                   m_read{o.m_read}
             {
                 auto e = base::advance_current(o.m_read);
@@ -170,7 +210,7 @@ namespace scn {
             template <typename R>
             void _fill_buffer_impl(std::true_type)
             {
-                auto s = get_buffer(m_range, m_current);
+                auto s = get_buffer(m_range.get(), m_current);
                 if (s.size() > 0) {
                     auto old_size = m_buffer.size();
                     m_buffer.resize(m_buffer.size() + s.size());
@@ -210,7 +250,7 @@ namespace scn {
                 m_buffer.reserve(m_buffer.size() +
                                  static_cast<size_t>(chars_to_read));
                 for (; chars_to_read >= 0; --chars_to_read) {
-                    if (m_current == ranges::end(m_range)) {
+                    if (m_current == ranges::end(m_range.get())) {
                         return {error::end_of_range, "EOF"};
                     }
                     ++m_current;
@@ -253,7 +293,7 @@ namespace scn {
             }
             bool do_is_current_at_end() const override
             {
-                return m_current == ranges::end(m_range) &&
+                return m_current == ranges::end(m_range.get()) &&
                        m_read == static_cast<std::ptrdiff_t>(m_buffer.size());
             }
 
@@ -264,7 +304,7 @@ namespace scn {
             }
 
         protected:
-            range_type m_range;
+            range_storage_type m_range;
             std::basic_string<char_type> m_buffer{};
             iterator m_current;
             std::ptrdiff_t m_read{0};
@@ -277,6 +317,35 @@ namespace scn {
         struct _has_erased_range_marker
             : custom_ranges::detail::exists<_erased_range_marker, T> {
         };
+
+        template <typename CharT, typename Range>
+        auto make_erased_range_impl(Range& r)
+            -> basic_erased_range_impl<erased_range_storage_by_reference<Range>,
+                                       Range,
+                                       CharT>
+        {
+            return {r};
+        }
+        template <typename CharT,
+                  typename Range,
+                  typename std::enable_if<
+                      !std::is_reference<Range>::value>::type* = nullptr>
+        auto make_erased_range_impl(Range&& r)
+            -> basic_erased_range_impl<erased_range_storage_by_value<Range>,
+                                       Range,
+                                       CharT>
+        {
+            return {SCN_MOVE(r)};
+        }
+
+        template <typename CharT,
+                  typename Range,
+                  typename ImplType = decltype(make_erased_range_impl(
+                      SCN_FWD(SCN_DECLVAL(Range))))>
+        auto make_unique_erased_range_impl(Range&& r) -> unique_ptr<ImplType>
+        {
+            return make_unique<ImplType>(make_erased_range_impl(SCN_FWD(r)));
+        }
     }  // namespace detail
 
     template <typename CharT>
@@ -296,7 +365,7 @@ namespace scn {
             using iterator_category = std::bidirectional_iterator_tag;
             using range_type = basic_erased_range<CharT>;
 
-            iterator() = default;
+            SCN_CONSTEXPR14 iterator() noexcept = default;
 
             expected<CharT> operator*() const
             {
@@ -322,6 +391,7 @@ namespace scn {
             iterator& operator--()
             {
                 SCN_EXPECT(m_range);
+                SCN_EXPECT(m_index > 0);
                 --m_index;
                 return *this;
             }
@@ -403,12 +473,12 @@ namespace scn {
                   typename std::enable_if<!detail::_has_erased_range_marker<
                       detail::remove_cvref_t<R>>::value>::type* = nullptr>
         basic_erased_range(R&& r)
-            : m_impl(detail::make_unique<
-                     detail::basic_erased_range_impl<R, CharT>>(SCN_FWD(r)))
+            : m_impl(detail::make_unique_erased_range_impl<CharT>(SCN_FWD(r)))
         {
         }
 
-        basic_erased_range(iterator b, sentinel) {
+        basic_erased_range(iterator b, sentinel)
+        {
             if (!b.m_range) {
                 return;
             }
@@ -474,7 +544,7 @@ namespace scn {
         using sentinel = typename range_type::sentinel;
 
         basic_erased_view() = default;
-        basic_erased_view(const range_type& range) : m_range(&range) {}
+        basic_erased_view(range_type& range) : m_range(&range) {}
 
         iterator begin() const
         {
@@ -495,8 +565,21 @@ namespace scn {
             return m_range->get_buffer(b, max_size);
         }
 
+        range_type& get() &
+        {
+            return *m_range;
+        }
+        const range_type& get() const&
+        {
+            return *m_range;
+        }
+        range_type&& get() &&
+        {
+            return SCN_MOVE(*m_range);
+        }
+
     private:
-        const range_type* m_range{nullptr};
+        range_type* m_range{nullptr};
     };
 
     using erased_view = basic_erased_view<char>;
