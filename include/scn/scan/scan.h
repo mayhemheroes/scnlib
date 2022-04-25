@@ -72,7 +72,7 @@ namespace scn {
             auto range = prepare(r);
             auto format = detail::to_format(f);
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan(range_for_vscan(range), format, {args});
+            auto ret = vscan(range.get(), format, {args});
             return make_scan_result<Range>(range, SCN_MOVE(ret));
         }
 
@@ -88,7 +88,7 @@ namespace scn {
             auto range = prepare(r);
             auto format = static_cast<int>(sizeof...(Args));
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan_default(range_for_vscan(range), format, {args});
+            auto ret = vscan_default(range.get(), format, {args});
             return make_scan_result<Range>(range, SCN_MOVE(ret));
         }
 
@@ -115,8 +115,8 @@ namespace scn {
             SCN_CLANG_POP_IGNORE_UNDEFINED_TEMPLATE
 
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan_localized(range_for_vscan(range), SCN_MOVE(locale),
-                                       format, {args});
+            auto ret =
+                vscan_localized(range.get(), SCN_MOVE(locale), format, {args});
             return make_scan_result<Range>(range, SCN_MOVE(ret));
         }
 
@@ -252,7 +252,7 @@ namespace scn {
         T value;
         auto range = prepare(r);
         auto args = make_args_for(range, 1, value);
-        auto ret = vscan_default(range_for_vscan(range), 1, {args});
+        auto ret = vscan_default(range.get(), 1, {args});
         if (ret.err) {
             return detail::wrap_result(expected<T>{value},
                                        detail::range_tag<Range>{}, range,

@@ -503,8 +503,8 @@ namespace scn {
                                             Format,
                                             Args&... args)
     {
-        using range_type =
-            decltype(wrap(range_for_vscan(SCN_DECLVAL(const PreparedRange&))));
+        using range_type = decltype(wrap(
+            SCN_DECLVAL(const typename PreparedRange::target_type&)));
         using context_type = basic_context<range_type>;
         using parse_context_type =
             typename detail::parse_context_template_for_format<

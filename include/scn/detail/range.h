@@ -95,25 +95,6 @@ namespace scn {
 #endif  // SCN_HAS_STRING_VIEW
     }   // namespace detail
 
-    template <typename CharT, typename Allocator>
-    basic_string_view<CharT> range_for_vscan(
-        const std::basic_string<CharT, std::char_traits<CharT>, Allocator>&
-            str) noexcept
-    {
-        return {str.data(), str.size()};
-    }
-    template <typename CharT>
-    basic_erased_view<CharT> range_for_vscan(
-        const basic_erased_range<CharT>& r) noexcept
-    {
-        return {r};
-    }
-    template <typename R>
-    R range_for_vscan(R&& r) noexcept
-    {
-        return SCN_FWD(r);
-    }
-
     SCN_END_NAMESPACE
 }  // namespace scn
 

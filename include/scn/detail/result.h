@@ -553,8 +553,7 @@ namespace scn {
                   typename InputRange,
                   typename PreparedRange = decltype(prepare(SCN_DECLVAL(
                       typename std::remove_reference<InputRange>::type&))),
-                  typename ResultRange = decltype(range_for_vscan(
-                      SCN_DECLVAL(const PreparedRange&)))>
+                  typename ResultRange = typename PreparedRange::target_type>
         struct result_type_for {
             using type =
                 decltype(wrap_result(SCN_DECLVAL(Error &&),
@@ -572,7 +571,7 @@ namespace scn {
     {
         auto prepared = prepare(r);
         return detail::wrap_result(Error{}, detail::range_tag<Range>{},
-                                   prepared, range_for_vscan(r));
+                                   prepared, prepared.get());
     }
 
     SCN_END_NAMESPACE
