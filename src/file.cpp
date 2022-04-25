@@ -21,6 +21,7 @@
 
 #include <scn/detail/error.h>
 #include <scn/detail/file.h>
+#include <scn/detail/locale.h>
 #include <scn/util/expected.h>
 
 #include <cstdio>
@@ -81,8 +82,7 @@ namespace scn {
                 return;
             }
 
-            struct stat s {
-            };
+            struct stat s {};
             int status = fstat(fd, &s);
             if (status == -1) {
                 close(fd);
@@ -162,7 +162,321 @@ namespace scn {
 
     }  // namespace detail
 
+    static error _file_read_single(FILE* f, char& ch)
+    {
+        SCN_EXPECT(f != nullptr);
+        int tmp = std::fgetc(f);
+        if (tmp == EOF) {
+            if (std::feof(f) != 0) {
+                return error(error::end_of_range, "EOF");
+            }
+            if (std::ferror(f) != 0) {
+                return error(error::source_error, "fgetc error");
+            }
+            return error(error::unrecoverable_source_error,
+                         "Unknown fgetc error");
+        }
+        ch = static_cast<char>(tmp);
+        return {};
+    }
+    static error _file_read_single(FILE* f, wchar_t& ch)
+    {
+        SCN_EXPECT(f != nullptr);
+        wint_t tmp = std::fgetwc(f);
+        if (tmp == WEOF) {
+            if (std::feof(f) != 0) {
+                return error(error::end_of_range, "EOF");
+            }
+            if (std::ferror(f) != 0) {
+                return error(error::source_error, "fgetc error");
+            }
+            return error(error::unrecoverable_source_error,
+                         "Unknown fgetc error");
+        }
+        ch = static_cast<wchar_t>(tmp);
+        return {};
+    }
+
+    template <typename CharT>
+    error basic_file<CharT>::_read_single()
+    {
+        SCN_EXPECT(valid());
+        SCN_EXPECT(!_get_buffer_for_reading().empty());
+        CharT ch;
+        auto e = _file_read_single(m_file, ch);
+        if (!e) {
+            return e;
+        }
+        _get_buffer_for_reading().front() = ch;
+        ++m_last_read_index;
+        return {};
+    }
+
+    template <typename CharT>
+    error basic_file<CharT>::_read_line()
+    {
+        SCN_EXPECT(valid());
+        SCN_EXPECT(!_get_buffer_for_reading().empty());
+
+        while (!_get_buffer_for_reading().empty()) {
+            char ch{};
+            auto e = _file_read_single(m_file, ch);
+            if (!e) {
+                return e;
+            }
+            _get_buffer_for_reading().front() = ch;
+            ++m_last_read_index;
+            if (ch == detail::ascii_widen<CharT>('\n')) {
+                break;
+            }
+        }
+        return {};
+    }
+
+    template <typename CharT>
+    static std::pair<std::size_t, error> _file_read_multiple(FILE* f,
+                                                             span<CharT> buf)
+    {
+        SCN_EXPECT(f);
+        SCN_EXPECT(!buf.empty());
+
+        auto ret = std::fread(buf.data(), sizeof(CharT), buf.size(), f);
+        if (ret < buf.size()) {
+            if (std::feof(f) != 0) {
+                return {ret, {error::end_of_range, "EOF"}};
+            }
+            if (std::ferror(f) != 0) {
+                return {ret, error{error::source_error, "fread error"}};
+            }
+            return {ret, error{error::unrecoverable_source_error,
+                               "Unknown fread error"}};
+        }
+        return {ret, {}};
+    }
+
+    template <typename CharT>
+    error basic_file<CharT>::_read_chars(std::size_t n)
+    {
+        SCN_EXPECT(valid());
+        SCN_EXPECT(_get_buffer_for_reading().size() >= n);
+
+        auto ret =
+            _file_read_multiple(m_file, _get_buffer_for_reading().first(n));
+        m_last_read_index += ret.first;
+        return ret.second;
+    }
+
+    template <typename CharT>
+    error basic_file<CharT>::_get_more()
+    {
+        SCN_EXPECT(valid());
+        SCN_EXPECT(!m_eof_reached);
+
+        if (_get_buffer_for_reading().empty()) {
+            _reclaim_buffer();
+        }
+
+        error err{};
+        if (m_buffering == file_buffering::full) {
+            err = _read_chars(_get_buffer_for_reading().size());
+        }
+        else if (m_buffering == file_buffering::line) {
+            err = _read_line();
+        }
+        else if (m_buffering == file_buffering::none) {
+            err = _read_single();
+        }
+
+        if (!err) {
+            if (err.code() == error::end_of_range) {
+                m_eof_reached = true;
+            }
+            else {
+                m_last_error = err;
+            }
+        }
+        return err;
+    }
+
+    template <typename CharT>
+    void basic_file<CharT>::_init()
+    {
+        SCN_EXPECT(valid());
+
+#if SCN_POSIX
+        const auto fd = ::fileno(m_file);
+
+        struct ::stat s {};
+        auto ret = ::fstat(fd, &s);
+        bool is_socket = false;
+        std::size_t blksize = BUFSIZ;
+
+        if (ret == 0) {
+            is_socket = S_ISSOCK(s.st_mode);
+            blksize = static_cast<std::size_t>(s.st_blksize);
+        }
+
+        if (m_buffering == file_buffering::detect) {
+            const bool is_tty = ::isatty(fd) == 1;
+            if (is_tty || is_socket) {
+                m_buffering = file_buffering::none;
+            }
+            else {
+                m_buffering = file_buffering::full;
+            }
+        }
+
+        if (m_ext_buffer.empty()) {
+            m_buffer.resize(blksize / sizeof(CharT));
+        }
+#elif SCN_WINDOWS
+        const auto fd = ::_fileno(m_file);
+
+        if (m_buffering == file_buffering::detect) {
+            const auto is_tty = ::_isatty(fd) != 0;
+            if (is_tty) {
+                m_buffering = file_buffering::none;
+            }
+            else {
+                m_buffering = file_buffering::full;
+            }
+        }
+
+        if (m_ext_buffer.empty()) {
+            m_buffer.resize(BUFSIZ / sizeof(CharT));
+        }
+#else
+        if (m_buffering == file_buffering::detect) {
+            if (f == stdin) {
+                m_buffering = file_buffering::none;
+            }
+            else {
+                m_buffering = file_buffering::full;
+            }
+        }
+
+        if (m_ext_buffer.empty()) {
+            m_buffer.resize(BUFSIZ / sizeof(CharT));
+        }
+#endif
+    }
+
     namespace detail {
+        template <typename CharT>
+        struct basic_file_iterator_access {
+            using iterator = typename basic_file<CharT>::iterator;
+
+            basic_file_iterator_access(const iterator& it) : self(it) {}
+
+            SCN_NODISCARD expected<CharT> deref() const
+            {
+                SCN_EXPECT(self.m_file);
+
+                if (self.m_file->_should_read_more(self.m_current)) {
+                    // no chars have been read
+                    self.m_last_error = self.m_file->_get_more();
+                    if (!self.m_last_error) {
+                        return self.m_last_error;
+                    }
+                }
+                if (!self.m_last_error) {
+                    // last read failed
+                    return self.m_last_error;
+                }
+                return self.m_file->_get_char_at(self.m_current);
+            }
+
+            void inc()
+            {
+                ++self.m_current;
+            }
+
+            SCN_NODISCARD bool eq(const iterator& o) const
+            {
+                if (self.m_file && (self.m_file == o.m_file || !o.m_file)) {
+                    if (self.m_file->_should_read_more(self.m_current) &&
+                        self.m_last_error.code() != error::end_of_range &&
+                        !o.m_file) {
+                        self.m_last_error = error{};
+                        auto r = self.m_file->_get_more();
+                        if (!r) {
+                            self.m_last_error = r.error();
+                            return !o.m_file || self.m_current == o.m_current ||
+                                   o.m_last_error.code() == error::end_of_range;
+                        }
+                    }
+                }
+
+                // null file == null file
+                if (!self.m_file && !o.m_file) {
+                    return true;
+                }
+                // null file == eof file
+                if (!self.m_file && o.m_file) {
+                    // lhs null, rhs potentially eof
+                    return o.m_last_error.code() == error::end_of_range;
+                }
+                // eof file == null file
+                if (self.m_file && !o.m_file) {
+                    // rhs null, lhs potentially eof
+                    return self.m_last_error.code() == error::end_of_range;
+                }
+                // eof file == eof file
+                if (self.m_last_error == o.m_last_error &&
+                    self.m_last_error.code() == error::end_of_range) {
+                    return true;
+                }
+
+                return self.m_file == o.m_file && self.m_current == o.m_current;
+            }
+
+            const iterator& self;
+        };
+    }  // namespace detail
+
+    template <>
+    SCN_FUNC basic_file<char>::iterator&
+    basic_file<char>::iterator::operator++()
+    {
+        SCN_EXPECT(m_file);
+        detail::basic_file_iterator_access<char>(*this).inc();
+        return *this;
+    }
+    template <>
+    SCN_FUNC basic_file<wchar_t>::iterator&
+    basic_file<wchar_t>::iterator::operator++()
+    {
+        SCN_EXPECT(m_file);
+        detail::basic_file_iterator_access<wchar_t>(*this).inc();
+        return *this;
+    }
+
+    template <>
+    SCN_FUNC expected<char> basic_file<char>::iterator::operator*() const
+    {
+        return detail::basic_file_iterator_access<char>(*this).deref();
+    }
+    template <>
+    SCN_FUNC expected<wchar_t> basic_file<wchar_t>::iterator::operator*() const
+    {
+        return detail::basic_file_iterator_access<wchar_t>(*this).deref();
+    }
+
+    template <>
+    SCN_FUNC bool basic_file<char>::iterator::operator==(
+        const basic_file<char>::iterator& o) const
+    {
+        return detail::basic_file_iterator_access<char>(*this).eq(o);
+    }
+    template <>
+    SCN_FUNC bool basic_file<wchar_t>::iterator::operator==(
+        const basic_file<wchar_t>::iterator& o) const
+    {
+        return detail::basic_file_iterator_access<wchar_t>(*this).eq(o);
+    }
+
+#if 0
+            namespace detail {
         template <typename CharT>
         struct basic_file_iterator_access {
             using iterator = typename basic_file<CharT>::iterator;
@@ -306,6 +620,7 @@ namespace scn {
             std::ungetwc(static_cast<wint_t>(*it), m_file);
         }
     }
+#endif
 
     SCN_END_NAMESPACE
 }  // namespace scn

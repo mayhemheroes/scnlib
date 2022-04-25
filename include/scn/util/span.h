@@ -164,6 +164,9 @@ namespace scn {
         {
             return m_end - m_ptr;
         }
+        constexpr bool empty() const noexcept {
+            return size() == 0;
+        }
 
         SCN_CONSTEXPR14 span<T> first(index_type n) const
         {
@@ -186,6 +189,15 @@ namespace scn {
             SCN_EXPECT(size() > off + count);
             SCN_EXPECT(count > 0);
             return span<T>(data() + off, count);
+        }
+
+        SCN_CONSTEXPR14 reference front() {
+            SCN_EXPECT(!empty());
+            return *m_ptr;
+        }
+        SCN_CONSTEXPR14 reference back() {
+            SCN_EXPECT(!empty());
+            return *(m_ptr + size() - 1);
         }
 
         constexpr operator span<typename std::add_const<T>::type>() const

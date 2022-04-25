@@ -156,14 +156,219 @@ namespace scn {
             return {data(), size()};
         }
 
-        detail::range_wrapper<basic_string_view<CharT>> wrap() const noexcept
+        ready_prepared_range<basic_string_view<CharT>> prepare() const& noexcept
         {
-            return basic_string_view<CharT>{data(), size()};
+            return {data(), size()};
+        }
+        pending_prepared_range<basic_mapped_file, basic_string_view<CharT>>
+        prepare() && noexcept
+        {
+            return {SCN_MOVE(*this)};
         }
     };
 
     using mapped_file = basic_mapped_file<char>;
     using mapped_wfile = basic_mapped_file<wchar_t>;
+
+    namespace detail {
+        template <typename CharT>
+        struct basic_file_iterator_access;
+    }
+
+    enum class file_buffering {
+        // Read BUFSIZ (etc) into buffer
+        full,
+        // Read char-by-char until line break
+        line,
+        // Read char-by-char
+        none,
+
+        // Detect from given file:
+        // if tty -> none
+        // else -> full
+        detect
+    };
+
+    template <typename CharT>
+    class basic_file {
+        friend struct detail::basic_file_iterator_access<CharT>;
+
+    public:
+        class iterator {
+            friend struct detail::basic_file_iterator_access<CharT>;
+
+        public:
+            using char_type = CharT;
+            using value_type = expected<CharT>;
+            using reference = value_type;
+            using pointer = value_type*;
+            using difference_type = std::ptrdiff_t;
+            using iterator_category = std::bidirectional_iterator_tag;
+            using file_type = basic_file<CharT>;
+
+            iterator() = default;
+
+            expected<CharT> operator*() const;
+
+            iterator& operator++();
+
+            iterator operator++(int)
+            {
+                iterator tmp(*this);
+                operator++();
+                return tmp;
+            }
+
+            iterator& operator--()
+            {
+                SCN_EXPECT(m_file);
+                SCN_EXPECT(m_current > 0);
+
+                m_last_error = error{};
+                --m_current;
+
+                return *this;
+            }
+            iterator operator--(int)
+            {
+                iterator tmp(*this);
+                operator--();
+                return tmp;
+            }
+
+            bool operator==(const iterator& o) const;
+
+            bool operator!=(const iterator& o) const
+            {
+                return !operator==(o);
+            }
+
+            bool operator<(const iterator& o) const
+            {
+                // any valid iterator is before eof and null
+                if (!m_file) {
+                    return !o.m_file;
+                }
+                if (!o.m_file) {
+                    return !m_file;
+                }
+                SCN_EXPECT(m_file == o.m_file);
+                return m_current < o.m_current;
+            }
+            bool operator>(const iterator& o) const
+            {
+                return o.operator<(*this);
+            }
+            bool operator<=(const iterator& o) const
+            {
+                return !operator>(o);
+            }
+            bool operator>=(const iterator& o) const
+            {
+                return !operator<(o);
+            }
+
+        private:
+            friend class basic_file;
+
+            iterator(const file_type& f, size_t i)
+                : m_file{std::addressof(f)}, m_current{i}
+            {
+            }
+
+            mutable error m_last_error{};
+            const file_type* m_file{nullptr};
+            mutable size_t m_current{0};
+        };
+
+        basic_file() = default;
+
+        basic_file(FILE* f,
+                   file_buffering buffering = file_buffering::detect,
+                   span<CharT> ext_buffer = span<CharT>{nullptr})
+            : m_file(f), m_ext_buffer(ext_buffer), m_buffering(buffering)
+        {
+            _init();
+        }
+
+        basic_file(const basic_file&) = delete;
+        basic_file& operator=(const basic_file&) = delete;
+
+        basic_file(basic_file&&);
+        basic_file& operator=(basic_file&&);
+
+        ~basic_file();
+
+        FILE* get_handle()
+        {
+            return m_file;
+        }
+
+        constexpr bool valid() const noexcept
+        {
+            return m_file != nullptr;
+        }
+
+        pending_prepared_range<basic_erased_range<CharT>,
+                               basic_erased_view<CharT>>
+        prepare()
+        {
+            return {erase_range(*this)};
+        }
+
+    private:
+        error _read_single();
+        error _read_line();
+        error _read_chars(std::size_t);
+
+        void _reclaim_buffer()
+        {
+            m_chars_in_past_buffers += m_last_read_index;
+            m_last_read_index = 0;
+        }
+
+        error _get_more();
+
+        span<CharT> _get_buffer()
+        {
+            if (m_ext_buffer.empty()) {
+                return {m_buffer.data(), m_buffer.size()};
+            }
+            return m_ext_buffer;
+        }
+        span<CharT> _get_buffer_for_reading()
+        {
+            return _get_buffer().subspan(m_last_read_index);
+        }
+
+        CharT _get_char_at(std::size_t index) const
+        {
+            return _get_buffer()[index - m_chars_in_past_buffers];
+        }
+        bool _should_read_more(std::size_t index) const
+        {
+            return m_last_read_index < index - m_chars_in_past_buffers &&
+                   !m_eof_reached;
+        }
+        bool _is_at_end(std::size_t index) const
+        {
+            return m_last_read_index == index - m_chars_in_past_buffers &&
+                   m_eof_reached;
+        }
+
+        void _init();
+
+        FILE* m_file{nullptr};
+        std::basic_string<CharT> m_buffer{};
+        span<CharT> m_ext_buffer{};
+        error m_last_error{};
+        std::size_t m_chars_in_past_buffers{0};
+        std::size_t m_last_read_index{0};
+        file_buffering m_buffering{file_buffering::none};
+        bool m_eof_reached{false};
+    };
+
+#if 0
 
     namespace detail {
         template <typename CharT>
@@ -566,6 +771,8 @@ namespace scn {
         return stdin_range<wchar_t>();
     }
     SCN_CLANG_POP
+
+#endif
 
     SCN_END_NAMESPACE
 }  // namespace scn
