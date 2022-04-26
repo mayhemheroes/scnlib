@@ -443,6 +443,15 @@ namespace scn {
                 return !operator<(other);
             }
 
+            basic_erased_range<CharT>* get_range()
+            {
+                return m_range;
+            }
+            const basic_erased_range<CharT>* get_range() const
+            {
+                return m_range;
+            }
+
         private:
             iterator(const basic_erased_range<CharT>& r, std::ptrdiff_t i)
                 : m_range(const_cast<basic_erased_range<CharT>*>(&r)),
@@ -544,42 +553,43 @@ namespace scn {
         using sentinel = typename range_type::sentinel;
 
         basic_erased_view() = default;
-        basic_erased_view(range_type& range) : m_range(&range) {}
+        basic_erased_view(range_type& range)
+            : m_begin(range.begin()), m_end(range.end())
+        {
+        }
+        basic_erased_view(iterator begin, sentinel end)
+            : m_begin(SCN_MOVE(begin)), m_end(SCN_MOVE(end))
+        {
+        }
 
         iterator begin() const
         {
-            if (!m_range) {
-                return {};
-            }
-            return m_range->begin();
+            return m_begin;
         }
 
-        iterator end() const
+        sentinel end() const
         {
-            return {};
+            return m_end;
         }
 
         span<const char_type> get_buffer(iterator b, std::size_t max_size) const
         {
-            SCN_EXPECT(m_range);
-            return m_range->get_buffer(b, max_size);
+            SCN_EXPECT(m_begin.get_range());
+            return get().get_buffer(b, max_size);
         }
 
-        range_type& get() &
+        range_type& get()
         {
-            return *m_range;
+            return *m_begin.get_range();
         }
-        const range_type& get() const&
+        const range_type& get() const
         {
-            return *m_range;
-        }
-        range_type&& get() &&
-        {
-            return SCN_MOVE(*m_range);
+            return *m_begin.get_range();
         }
 
     private:
-        range_type* m_range{nullptr};
+        iterator m_begin{};
+        sentinel m_end{};
     };
 
     using erased_view = basic_erased_view<char>;

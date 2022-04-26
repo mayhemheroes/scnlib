@@ -134,10 +134,7 @@ namespace scn {
                         break;
                     }
                     SCN_CLANG_PUSH_IGNORE_UNDEFINED_TEMPLATE
-                    auto rb = ctx.range().reset_to_rollback_point();
-                    if (!rb) {
-                        return rb;
-                    }
+                    ctx.range().reset_to_rollback_point();
                     return ret;
                 }
                 // Don't advance pctx, should_skip_ws() does it for us
@@ -156,11 +153,7 @@ namespace scn {
                 auto ret = read_code_point(ctx.range(), make_span(buf, 4));
                 SCN_CLANG_POP_IGNORE_UNDEFINED_TEMPLATE
                 if (!ret || !pctx.check_literal(ret.value().chars)) {
-                    auto rb = ctx.range().reset_to_rollback_point();
-                    if (!rb) {
-                        // Failed rollback
-                        return rb;
-                    }
+                    ctx.range().reset_to_rollback_point();
                     if (!ret) {
                         // Failed read
                         return ret.error();
@@ -217,10 +210,7 @@ namespace scn {
                 auto ret = visit_arg<char_type>(
                     basic_visitor<Context, ParseCtx>(ctx, pctx), arg);
                 if (!ret) {
-                    auto rb = ctx.range().reset_to_rollback_point();
-                    if (!rb) {
-                        return rb;
-                    }
+                    ctx.range().reset_to_rollback_point();
                     return ret;
                 }
                 // Handle next arg and bump pctx

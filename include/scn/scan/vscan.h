@@ -53,7 +53,7 @@ namespace scn {
             auto ctx = make_context(SCN_MOVE(r));
             auto pctx = make_parse_context(fmt, ctx.locale());
             auto err = visit(ctx, pctx, SCN_MOVE(args));
-            return {err, SCN_MOVE(ctx.range())};
+            return {err, ctx.range().reconstructed()};
         }
 
         template <typename WrappedRange,
@@ -66,7 +66,7 @@ namespace scn {
             auto ctx = make_context(SCN_MOVE(r));
             auto pctx = make_parse_context(n_args, ctx.locale());
             auto err = visit(ctx, pctx, SCN_MOVE(args));
-            return {err, SCN_MOVE(ctx.range())};
+            return {err, ctx.range().reconstructed()};
         }
 
         template <typename WrappedRange,
@@ -81,7 +81,7 @@ namespace scn {
             auto ctx = make_context(SCN_MOVE(r), SCN_MOVE(loc));
             auto pctx = make_parse_context(fmt, ctx.locale());
             auto err = visit(ctx, pctx, SCN_MOVE(args));
-            return {err, SCN_MOVE(ctx.range())};
+            return {err, ctx.range().reconstructed()};
         }
     }  // namespace detail
 

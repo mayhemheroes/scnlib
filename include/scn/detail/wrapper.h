@@ -19,7 +19,9 @@
 #define SCN_DETAIL_WRAPPER_H
 
 #include "../ranges/ranges.h"
+#include "../util/memory.h"
 #include "prepare.h"
+#include "vectored.h"
 
 namespace scn {
     SCN_BEGIN_NAMESPACE
@@ -32,8 +34,8 @@ namespace scn {
         using iterator = typename range_type::const_iterator;
         using sentinel = typename range_type::const_iterator;
         using difference_type = typename range_type::difference_type;
-        using value_type = CharT;
-        using pointer = CharT*;
+        using value_type = const CharT;
+        using pointer = const CharT*;
 
         SCN_CONSTEXPR14 basic_string_view_wrapper(range_type r) noexcept
             : m_range(SCN_MOVE(r)), m_begin(m_range.cend())
@@ -81,7 +83,7 @@ namespace scn {
 
         SCN_CONSTEXPR14 pointer data() const noexcept
         {
-            return to_address(m_begin);
+            return detail::to_address(m_begin);
         }
         constexpr difference_type size()
         {
@@ -91,7 +93,7 @@ namespace scn {
         span<const char_type> get_buffer_and_advance(
             std::size_t max_size = std::numeric_limits<size_t>::max())
         {
-            auto buf = get_buffer(m_range, begin(), max_size);
+            auto buf = detail::get_buffer(m_range, begin(), max_size);
             advance(buf.ssize());
             return buf;
         }
@@ -105,6 +107,11 @@ namespace scn {
         SCN_CONSTEXPR14 void set_rollback_point() const noexcept
         {
             m_read = 0;
+        }
+
+        range_type reconstructed()
+        {
+            return {begin(), end()};
         }
 
         static constexpr bool is_direct = true;
@@ -177,7 +184,7 @@ namespace scn {
         span<const char_type> get_buffer_and_advance(
             std::size_t max_size = std::numeric_limits<size_t>::max())
         {
-            auto buf = get_buffer(m_range, begin(), max_size);
+            auto buf = detail::get_buffer(m_range, begin(), max_size);
             if (buf.size() != 0) {
                 advance(buf.ssize());
             }
@@ -192,6 +199,11 @@ namespace scn {
         void set_rollback_point()
         {
             m_read = 0;
+        }
+
+        range_type reconstructed()
+        {
+            return {begin(), end()};
         }
 
         static constexpr bool is_direct = false;

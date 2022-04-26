@@ -35,14 +35,14 @@ namespace scn {
         return detail::vscan_boilerplate(wrap(r), f, SCN_MOVE(a));            \
     }                                                                         \
                                                                               \
-    vscan_result<Range> vscan_default(Range r, int n, basic_args<CharT>&& a); \
+    vscan_result<Range> vscan_default(Range r, int n, basic_args<CharT>&& a)  \
     {                                                                         \
         return detail::vscan_boilerplate_default(wrap(r), n, SCN_MOVE(a));    \
     }                                                                         \
                                                                               \
-    vscan_result<Range> vscan_localized(Range r, basic_locale_ref<CharT>&& l, \
-                                        basic_string_view<CharT> f,           \
-                                        basic_args<CharT>&& a);               \
+    vscan_result<Range> vscan_localized(                                      \
+        Range r, basic_locale_ref<CharT>&& loc, basic_string_view<CharT> f,   \
+        basic_args<CharT>&& a)                                                \
     {                                                                         \
         return detail::vscan_boilerplate_localized(wrap(r), SCN_MOVE(loc), f, \
                                                    SCN_MOVE(a));              \

@@ -368,13 +368,20 @@ namespace scn {
 
             basic_file_iterator_access(const iterator& it) : self(it) {}
 
+            SCN_NODISCARD basic_file<CharT>& get_file() const
+            {
+                SCN_EXPECT(self.m_file);
+                // ew
+                return *const_cast<basic_file<CharT>*>(self.m_file);
+            }
+
             SCN_NODISCARD expected<CharT> deref() const
             {
                 SCN_EXPECT(self.m_file);
 
                 if (self.m_file->_should_read_more(self.m_current)) {
                     // no chars have been read
-                    self.m_last_error = self.m_file->_get_more();
+                    self.m_last_error = get_file()._get_more();
                     if (!self.m_last_error) {
                         return self.m_last_error;
                     }
@@ -383,7 +390,7 @@ namespace scn {
                     // last read failed
                     return self.m_last_error;
                 }
-                return self.m_file->_get_char_at(self.m_current);
+                return get_file()._get_char_at(self.m_current);
             }
 
             void inc()
@@ -398,9 +405,9 @@ namespace scn {
                         self.m_last_error.code() != error::end_of_range &&
                         !o.m_file) {
                         self.m_last_error = error{};
-                        auto r = self.m_file->_get_more();
-                        if (!r) {
-                            self.m_last_error = r.error();
+                        auto e = get_file()._get_more();
+                        if (!e) {
+                            self.m_last_error = e;
                             return !o.m_file || self.m_current == o.m_current ||
                                    o.m_last_error.code() == error::end_of_range;
                         }

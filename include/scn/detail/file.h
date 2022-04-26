@@ -281,6 +281,9 @@ namespace scn {
             mutable size_t m_current{0};
         };
 
+        using sentinel = iterator;
+        using char_type = CharT;
+
         basic_file() = default;
 
         basic_file(FILE* f,
@@ -309,6 +312,15 @@ namespace scn {
             return m_file != nullptr;
         }
 
+        iterator begin()
+        {
+            return {*this, 0};
+        }
+        sentinel end()
+        {
+            return {};
+        }
+
         pending_prepared_range<basic_erased_range<CharT>,
                                basic_erased_view<CharT>>
         prepare()
@@ -332,11 +344,23 @@ namespace scn {
         span<CharT> _get_buffer()
         {
             if (m_ext_buffer.empty()) {
-                return {m_buffer.data(), m_buffer.size()};
+                return {&m_buffer[0], m_buffer.size()};
             }
             return m_ext_buffer;
         }
+        span<const CharT> _get_buffer() const
+        {
+            if (m_ext_buffer.empty()) {
+                return {m_buffer.data(), m_buffer.size()};
+            }
+            return m_ext_buffer.as_const();
+        }
+
         span<CharT> _get_buffer_for_reading()
+        {
+            return _get_buffer().subspan(m_last_read_index);
+        }
+        span<const CharT> _get_buffer_for_reading() const
         {
             return _get_buffer().subspan(m_last_read_index);
         }
