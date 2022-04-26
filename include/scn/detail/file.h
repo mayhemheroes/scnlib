@@ -288,7 +288,7 @@ namespace scn {
 
         basic_file(FILE* f,
                    file_buffering buffering = file_buffering::detect,
-                   span<CharT> ext_buffer = span<CharT>{nullptr})
+                   span<CharT> ext_buffer = span<CharT>{})
             : m_file(f), m_ext_buffer(ext_buffer), m_buffering(buffering)
         {
             _init();
@@ -297,10 +297,10 @@ namespace scn {
         basic_file(const basic_file&) = delete;
         basic_file& operator=(const basic_file&) = delete;
 
-        basic_file(basic_file&&);
-        basic_file& operator=(basic_file&&);
+        basic_file(basic_file&&) = default;
+        basic_file& operator=(basic_file&&) = default;
 
-        ~basic_file();
+        ~basic_file() = default;
 
         FILE* get_handle()
         {
@@ -391,6 +391,42 @@ namespace scn {
         file_buffering m_buffering{file_buffering::none};
         bool m_eof_reached{false};
     };
+
+    using file = basic_file<char>;
+    using wfile = basic_file<wchar_t>;
+
+    SCN_CLANG_PUSH
+    SCN_CLANG_IGNORE("-Wexit-time-destructors")
+
+    // Avoid documentation issues: without this, Doxygen will think
+    // SCN_CLANG_PUSH is a part of the stdin_range declaration
+    namespace dummy {
+    }
+
+    /**
+     * Get a reference to the global stdin range
+     */
+    template <typename CharT>
+    basic_file<CharT>& stdin_range()
+    {
+        static auto f = basic_file<CharT>{stdin};
+        return f;
+    }
+    /**
+     * Get a reference to the global `char`-oriented stdin range
+     */
+    inline file& cstdin()
+    {
+        return stdin_range<char>();
+    }
+    /**
+     * Get a reference to the global `wchar_t`-oriented stdin range
+     */
+    inline wfile& wcstdin()
+    {
+        return stdin_range<wchar_t>();
+    }
+    SCN_CLANG_POP
 
 #if 0
 

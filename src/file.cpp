@@ -198,7 +198,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    error basic_file<CharT>::_read_single()
+    SCN_FUNC error basic_file<CharT>::_read_single()
     {
         SCN_EXPECT(valid());
         SCN_EXPECT(!_get_buffer_for_reading().empty());
@@ -213,7 +213,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    error basic_file<CharT>::_read_line()
+    SCN_FUNC error basic_file<CharT>::_read_line()
     {
         SCN_EXPECT(valid());
         SCN_EXPECT(!_get_buffer_for_reading().empty());
@@ -255,7 +255,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    error basic_file<CharT>::_read_chars(std::size_t n)
+    SCN_FUNC error basic_file<CharT>::_read_chars(std::size_t n)
     {
         SCN_EXPECT(valid());
         SCN_EXPECT(_get_buffer_for_reading().size() >= n);
@@ -267,7 +267,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    error basic_file<CharT>::_get_more()
+    SCN_FUNC error basic_file<CharT>::_get_more()
     {
         SCN_EXPECT(valid());
         SCN_EXPECT(!m_eof_reached);
@@ -299,7 +299,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    void basic_file<CharT>::_init()
+    SCN_FUNC void basic_file<CharT>::_init()
     {
         SCN_EXPECT(valid());
 
@@ -360,6 +360,40 @@ namespace scn {
         }
 #endif
     }
+
+    template <>
+    expected<char> file::iterator::operator*() const;
+    template <>
+    expected<wchar_t> wfile::iterator::operator*() const;
+    template <>
+    file::iterator& file::iterator::operator++();
+    template <>
+    wfile::iterator& wfile::iterator::operator++();
+    template <>
+    bool file::iterator::operator==(const file::iterator&) const;
+    template <>
+    bool wfile::iterator::operator==(const wfile::iterator&) const;
+
+    template <>
+    error file::_read_single();
+    template <>
+    error wfile::_read_single();
+    template <>
+    error file::_read_line();
+    template <>
+    error wfile::_read_line();
+    template <>
+    error file::_read_chars(std::size_t);
+    template <>
+    error wfile::_read_chars(std::size_t);
+    template <>
+    error file::_get_more();
+    template <>
+    error wfile::_get_more();
+    template <>
+    void file::_init();
+    template <>
+    void wfile::_init();
 
     namespace detail {
         template <typename CharT>

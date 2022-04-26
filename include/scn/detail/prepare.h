@@ -70,7 +70,7 @@ namespace scn {
                 basic_string_view<typename std::remove_cv<CharT>::type>>
             impl(CharT (&s)[N], detail::priority_tag<3>) noexcept
             {
-                return {s, s + N - 1};
+                return {{s, s + N - 1}};
             }
 
             template <typename CharT>
@@ -78,7 +78,7 @@ namespace scn {
                 basic_string_view<CharT> s,
                 detail::priority_tag<2>) noexcept
             {
-                return s;
+                return {s};
             }
 
 #if SCN_HAS_STRING_VIEW
@@ -87,7 +87,7 @@ namespace scn {
                 std::basic_string_view<CharT> s,
                 detail::priority_tag<2>) noexcept
             {
-                return s;
+                return {s};
             }
 #endif
 
@@ -96,7 +96,7 @@ namespace scn {
                 basic_string_view<typename std::remove_cv<CharT>::type>>
             impl(span<CharT> s, detail::priority_tag<2>) noexcept
             {
-                return {s.data(), s.size()};
+                return {{s.data(), s.size()}};
             }
 
             template <typename CharT, typename Allocator>
@@ -105,7 +105,7 @@ namespace scn {
                     str,
                 detail::priority_tag<2>) noexcept
             {
-                return {str.data(), str.size()};
+                return {{str.data(), str.size()}};
             }
 
             template <typename CharT, typename Allocator>
@@ -119,7 +119,7 @@ namespace scn {
                                       is_nothrow_move_constructible<
                                           decltype(str)>::value)
             {
-                return SCN_MOVE(str);
+                return {SCN_MOVE(str)};
             }
 
             template <typename T,
@@ -151,7 +151,7 @@ namespace scn {
                 return {erase_range(SCN_FWD(r))};
             }
 
-        private:
+        public:
             template <typename T>
             auto operator()(T&& r) const
                 noexcept(noexcept(fn::impl(SCN_FWD(r),
