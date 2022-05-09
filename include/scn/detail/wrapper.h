@@ -146,7 +146,7 @@ namespace scn {
         {
             return m_begin;
         }
-        sentinel end() const
+        sentinel end() const noexcept
         {
             return m_range.end();
         }
@@ -228,6 +228,16 @@ namespace scn {
     basic_erased_view_wrapper<CharT> wrap(basic_erased_view<CharT> e)
     {
         return {e};
+    }
+    template <typename CharT>
+    basic_string_view_wrapper<CharT> wrap(basic_string_view_wrapper<CharT> w)
+    {
+        return w;
+    }
+    template <typename CharT>
+    basic_erased_view_wrapper<CharT> wrap(basic_erased_view_wrapper<CharT> w)
+    {
+        return w;
     }
 
     SCN_END_NAMESPACE

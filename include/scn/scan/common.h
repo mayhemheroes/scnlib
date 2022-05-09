@@ -81,13 +81,6 @@ namespace scn {
                 return size != 1;
             }
         };
-
-        template <typename Error, typename Range>
-        using generic_scan_result_for_range =
-            decltype(make_result<Error>(SCN_DECLVAL(Range)));
-        template <typename Range>
-        using scan_result_for_range =
-            generic_scan_result_for_range<wrapped_error, Range>;
     }  // namespace detail
 
     template <typename T>

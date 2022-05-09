@@ -340,11 +340,12 @@ namespace scn {
 
         template <typename CharT,
                   typename Range,
-                  typename ImplType = decltype(make_erased_range_impl(
+                  typename ImplType = decltype(make_erased_range_impl<CharT>(
                       SCN_FWD(SCN_DECLVAL(Range))))>
         auto make_unique_erased_range_impl(Range&& r) -> unique_ptr<ImplType>
         {
-            return make_unique<ImplType>(make_erased_range_impl(SCN_FWD(r)));
+            return scn::detail::make_unique<ImplType>(
+                make_erased_range_impl<CharT>(SCN_FWD(r)));
         }
     }  // namespace detail
 
@@ -443,11 +444,11 @@ namespace scn {
                 return !operator<(other);
             }
 
-            basic_erased_range<CharT>* get_range()
+            basic_erased_range<CharT>* get_range() noexcept
             {
                 return m_range;
             }
-            const basic_erased_range<CharT>* get_range() const
+            const basic_erased_range<CharT>* get_range() const noexcept
             {
                 return m_range;
             }
@@ -562,12 +563,12 @@ namespace scn {
         {
         }
 
-        iterator begin() const
+        iterator begin() const noexcept
         {
             return m_begin;
         }
 
-        sentinel end() const
+        sentinel end() const noexcept
         {
             return m_end;
         }
@@ -580,10 +581,12 @@ namespace scn {
 
         range_type& get()
         {
+            SCN_EXPECT(m_begin.get_range() != nullptr);
             return *m_begin.get_range();
         }
         const range_type& get() const
         {
+            SCN_EXPECT(m_begin.get_range() != nullptr);
             return *m_begin.get_range();
         }
 

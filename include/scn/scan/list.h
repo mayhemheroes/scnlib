@@ -336,11 +336,11 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename Range, typename Container>
     auto scan_list(Range&& r, Container& c)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename Container>
     SCN_NODISCARD auto scan_list(Range&& r, Container& c)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         auto&& range = wrap(r);
         auto ctx = make_context(SCN_MOVE(range));
@@ -379,13 +379,13 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename Range, typename Container, typename CharT>
     auto scan_list_ex(Range&& r, Container& c, scan_list_options<CharT> options)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename Container, typename CharT>
     SCN_NODISCARD auto scan_list_ex(Range&& r,
                                     Container& c,
                                     scan_list_options<CharT> options)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         auto&& range = wrap(r);
         auto ctx = make_context(SCN_MOVE(range));
@@ -419,7 +419,7 @@ namespace scn {
                              Range&& r,
                              Container& c,
                              scan_list_options<CharT> options)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Locale,
               typename Range,
@@ -429,7 +429,7 @@ namespace scn {
                                            Range&& r,
                                            Container& c,
                                            scan_list_options<CharT> options)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         auto&& range = wrap(r);
         using char_type = typename decltype(range)::char_type;

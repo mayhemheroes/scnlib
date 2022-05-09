@@ -494,11 +494,12 @@ namespace scn {
         return {detail::ctx_tag<Context>(), detail::parse_ctx_tag<ParseCtx>(),
                 args...};
     }
-    template <typename PreparedRange,
-              typename Format,
-              typename... Args,
-              typename CharT = typename detail::extract_char_type<
-                  ranges::iterator_t<PreparedRange>>::type>
+    template <
+        typename PreparedRange,
+        typename Format,
+        typename... Args,
+        typename CharT = typename detail::extract_char_type<
+            ranges::iterator_t<typename PreparedRange::target_type>>::type>
     arg_store<CharT, Args...> make_args_for(PreparedRange&,
                                             Format,
                                             Args&... args)

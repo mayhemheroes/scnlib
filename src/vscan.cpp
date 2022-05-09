@@ -55,10 +55,10 @@ namespace scn {
         return visit(ctx, pctx, SCN_MOVE(a));                                 \
     }
 
-    SCN_VSCAN_DEFINE(string_view, string_view_wrapper, char);
-    SCN_VSCAN_DEFINE(wstring_view, wstring_view_wrapper, wchar_t);
-    SCN_VSCAN_DEFINE(erased_view, erased_view_wrapper, char);
-    SCN_VSCAN_DEFINE(werased_view, werased_view_wrapper, wchar_t);
+    SCN_VSCAN_DEFINE(string_view, string_view_wrapper, char)
+    SCN_VSCAN_DEFINE(wstring_view, wstring_view_wrapper, wchar_t)
+    SCN_VSCAN_DEFINE(erased_view, erased_view_wrapper, char)
+    SCN_VSCAN_DEFINE(werased_view, werased_view_wrapper, wchar_t)
 
     SCN_END_NAMESPACE
 }  // namespace scn

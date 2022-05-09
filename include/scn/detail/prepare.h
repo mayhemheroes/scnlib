@@ -170,7 +170,7 @@ namespace scn {
     template <typename StoredRange, typename TargetRange>
     inline TargetRange pending_prepared_range<StoredRange, TargetRange>::get()
     {
-        return prepare(range);
+        return prepare(range).get();
     }
 
     SCN_END_NAMESPACE

@@ -158,7 +158,7 @@ namespace scn {
 
         ready_prepared_range<basic_string_view<CharT>> prepare() const& noexcept
         {
-            return {data(), size()};
+            return {{data(), size()}};
         }
         pending_prepared_range<basic_mapped_file, basic_string_view<CharT>>
         prepare() && noexcept
@@ -302,7 +302,7 @@ namespace scn {
 
         ~basic_file() = default;
 
-        FILE* get_handle()
+        FILE* get_handle() const
         {
             return m_file;
         }
@@ -312,11 +312,11 @@ namespace scn {
             return m_file != nullptr;
         }
 
-        iterator begin()
+        iterator begin() const
         {
             return {*this, 0};
         }
-        sentinel end()
+        sentinel end() const
         {
             return {};
         }
@@ -394,6 +394,30 @@ namespace scn {
 
     using file = basic_file<char>;
     using wfile = basic_file<wchar_t>;
+
+    extern template error basic_file<char>::_read_single();
+    extern template error basic_file<wchar_t>::_read_single();
+    extern template error basic_file<char>::_read_line();
+    extern template error basic_file<wchar_t>::_read_line();
+    extern template error basic_file<char>::_read_chars(std::size_t);
+    extern template error basic_file<wchar_t>::_read_chars(std::size_t);
+    extern template error basic_file<char>::_get_more();
+    extern template error basic_file<wchar_t>::_get_more();
+    extern template void basic_file<char>::_init();
+    extern template void basic_file<wchar_t>::_init();
+
+    extern template expected<char> basic_file<char>::iterator::operator*()
+        const;
+    extern template expected<wchar_t> basic_file<wchar_t>::iterator::operator*()
+        const;
+    extern template basic_file<char>::iterator&
+    basic_file<char>::iterator::operator++();
+    extern template basic_file<wchar_t>::iterator&
+    basic_file<wchar_t>::iterator::operator++();
+    extern template bool basic_file<char>::iterator::operator==(
+        const basic_file<char>::iterator&) const;
+    extern template bool basic_file<wchar_t>::iterator::operator==(
+        const basic_file<wchar_t>::iterator&) const;
 
     SCN_CLANG_PUSH
     SCN_CLANG_IGNORE("-Wexit-time-destructors")

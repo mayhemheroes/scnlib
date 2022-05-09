@@ -22,160 +22,74 @@ static_assert(SCN_CHECK_CONCEPT(scn::ranges::view<scn::string_view>), "");
 static_assert(!SCN_CHECK_CONCEPT(scn::ranges::view<const char*>), "");
 static_assert(!SCN_CHECK_CONCEPT(scn::ranges::view<const char (&)[2]>), "");
 
-TEST_CASE("lvalue range_wrapper")
+TEST_CASE("string_view range_wrapper")
 {
-    auto wrapped = scn::wrap("123 456");
+    auto source = scn::string_view{"123 456"};
+    auto prepared = scn::prepare(source);
+    auto wrapped = scn::wrap(prepared.get());
     auto range = scn::wrap(wrapped);
 
     static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
+        std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
 }
 
-TEST_CASE("rvalue range_wrapper")
-{
-    auto range = scn::wrap(scn::wrap("123 456"));
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
-}
-
-TEST_CASE("lvalue erased_range")
+TEST_CASE("erased_range")
 {
     auto source = scn::erase_range("123");
-    auto range = scn::wrap(source);
+    auto prepared = scn::prepare(source);
+    auto range = scn::wrap(prepared.get());
 
     static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::erased_range&>>::value,
-        "");
-}
-TEST_CASE("rvalue erased_range")
-{
-    auto range = scn::wrap(scn::erase_range("123"));
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::erased_range>>::value,
-        "");
+        std::is_same<decltype(range), scn::erased_view_wrapper>::value, "");
 }
 
 // mapped_file has .wrap() member function
-TEST_CASE("lvalue mapped_file")
+TEST_CASE("mapped_file")
 {
     auto file = scn::mapped_file{};
-    auto range = scn::wrap(file);
+    auto prepared = scn::prepare(file);
+    auto range = scn::wrap(prepared.get());
 
     static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
-}
-TEST_CASE("rvalue mapped_file")
-{
-    auto range = scn::wrap(scn::mapped_file{});
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
+        std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
 }
 
-TEST_CASE("string literal")
-{
-    auto range = scn::wrap("");
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
-}
-TEST_CASE("wide string literal")
-{
-    auto range = scn::wrap(L"");
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::wstring_view>>::value,
-        "");
-}
-
-TEST_CASE("lvalue string_view")
+TEST_CASE("string_view")
 {
     auto source = scn::string_view{"123"};
-    auto range = scn::wrap(source);
+    auto prepared = scn::prepare(source);
+    auto range = scn::wrap(prepared.get());
 
     static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
-}
-TEST_CASE("rvalue string_view")
-{
-    auto range = scn::wrap(scn::string_view{"123"});
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
+        std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
 }
 
-TEST_CASE("lvalue span")
+TEST_CASE("span")
 {
     auto source = scn::span<char>{};
-    auto range = scn::wrap(source);
+    auto prepared = scn::prepare(source);
+    auto range = scn::wrap(prepared.get());
 
     static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
-}
-TEST_CASE("rvalue span")
-{
-    auto range = scn::wrap(scn::span<char>{});
-
-    static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
+        std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
 }
 
-TEST_CASE("lvalue string")
+TEST_CASE("string")
 {
     auto source = std::string{};
-    auto range = scn::wrap(source);
+    auto prepared = scn::prepare(source);
+    auto range = scn::wrap(prepared.get());
 
     static_assert(
-        std::is_same<decltype(range),
-                     scn::detail::range_wrapper<scn::string_view>>::value,
-        "");
-}
-TEST_CASE("rvalue string")
-{
-    auto range = scn::wrap(std::string{});
-
-    static_assert(std::is_same<decltype(range),
-                               scn::detail::range_wrapper<std::string>>::value,
-                  "");
+        std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
 }
 
-TEST_CASE("lvalue file")
+TEST_CASE("file")
 {
     auto source = scn::file{};
-    auto range = scn::wrap(source);
+    auto prepared = scn::prepare(source);
+    auto range = scn::wrap(prepared.get());
 
-    static_assert(std::is_same<decltype(range),
-                               scn::detail::range_wrapper<scn::file&>>::value,
-                  "");
-}
-TEST_CASE("rvalue file")
-{
-    auto range = scn::wrap(scn::file{});
-
-    static_assert(std::is_same<decltype(range),
-                               scn::detail::range_wrapper<scn::file>>::value,
-                  "");
+    static_assert(
+        std::is_same<decltype(range), scn::erased_view_wrapper>::value, "");
 }

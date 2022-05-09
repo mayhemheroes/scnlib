@@ -100,16 +100,6 @@ TEST_CASE_TEMPLATE("getline", CharT, char, wchar_t)
     {
         string_type s{};
         auto source = get_deque<CharT>(data);
-        {
-            debug<decltype(source)&>{};
-            auto&& w = scn::wrap(source);
-            debug<decltype(w)>{};
-
-            auto r = scn::detail::wrap_result(
-                scn::error{}, scn::detail::range_tag<decltype(source)&>{},
-                SCN_MOVE(w));
-            debug<decltype(r)>{};
-        }
         auto ret =
             scn::getline(source, s, scn::detail::ascii_widen<CharT>('\n'));
         CHECK(ret);

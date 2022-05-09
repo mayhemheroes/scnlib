@@ -131,25 +131,29 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename Range, typename String, typename Until>
     auto getline(Range&& r, String& str, Until until)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename String, typename Until>
     SCN_NODISCARD auto getline(Range&& r, String& str, Until until)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
-        auto&& wrapped = wrap(r);
-        auto err = getline_impl(wrapped, str, until);
+        // TODO: getline_impl using erased args, implemented in .cpp?
+        auto prepared = prepare(r);
+        auto range = wrap(prepared.get());
+
+        auto err = getline_impl(range, str, until);
         if (!err) {
-            auto e = wrapped.reset_to_rollback_point();
+            auto e = range.reset_to_rollback_point();
             if (!e) {
                 err = e;
             }
         }
         else {
-            wrapped.set_rollback_point();
+            range.set_rollback_point();
         }
-        return detail::wrap_result(
-            wrapped_error{err}, detail::range_tag<Range>{}, SCN_MOVE(wrapped));
+        return detail::wrap_result(wrapped_error{err},
+                                   detail::range_tag<Range>{},
+                                   range.reconstructed());
     }
 #endif
 
@@ -167,14 +171,14 @@ namespace scn {
               typename CharT = typename detail::extract_char_type<
                   ranges::iterator_t<range_wrapper_for_t<Range>>>::type>
     auto getline(Range&& r, String& str)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range,
               typename String,
               typename CharT = typename detail::extract_char_type<
-                  ranges::iterator_t<range_wrapper_for_t<Range>>>::type>
+                  ranges::iterator_t<Range>>::type>
     SCN_NODISCARD auto getline(Range&& r, String& str)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         return getline(SCN_FWD(r), str, detail::ascii_widen<CharT>('\n'));
     }

@@ -24,6 +24,7 @@ SCN_GCC_IGNORE("-Wnoexcept")
 #include <deque>
 #include <exception>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <vector>
 SCN_GCC_POP
@@ -214,8 +215,6 @@ static_assert(SCN_CHECK_CONCEPT(scn::polyfill_2a::bidirectional_iterator<
               "indirect_range::iterator is a BidirectionalIterator");
 static_assert(SCN_CHECK_CONCEPT(scn::ranges::range<indirect_range<char>>),
               "indirect_range is a Range");
-static_assert(!scn::detail::is_direct_impl<indirect_range<char>>::value,
-              "indirect_range is not direct");
 
 template <typename CharT>
 indirect_range<CharT> get_indirect(const std::basic_string<CharT>& content)
@@ -263,7 +262,9 @@ bool consistency_scanf(std::string& source, const std::string& fmt, T& val)
 }
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_array)                     \
-    SCN_CLANG_PUSH SCN_CLANG_IGNORE("-Wexit-time-destructors") {}              \
+    SCN_CLANG_PUSH SCN_CLANG_IGNORE("-Wexit-time-destructors")                 \
+    {                                                                          \
+    }                                                                          \
     static std::vector<std::string> _doctest_subcases = [&(data_array)]() {    \
         std::vector<std::string> out;                                          \
         while (out.size() != (data_array).size())                              \

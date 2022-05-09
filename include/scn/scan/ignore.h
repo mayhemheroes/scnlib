@@ -129,11 +129,11 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename Range, typename Until>
     auto ignore_until(Range&& r, Until until)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename Until>
     SCN_NODISCARD auto ignore_until(Range&& r, Until until)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         auto&& wrapped = wrap(r);
         auto err = detail::ignore_until_impl(wrapped, until);
@@ -162,13 +162,14 @@ namespace scn {
     template <typename Range, typename Until>
     auto ignore_until_n(Range&& r,
                         ranges::range_difference_t<Range> n,
-                        Until until) -> detail::scan_result_for_range<Range>;
+                        Until until)
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename Until>
     SCN_NODISCARD auto ignore_until_n(Range&& r,
                                       ranges::range_difference_t<Range> n,
                                       Until until)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         auto&& wrapped = wrap(r);
         auto err = detail::ignore_until_n_impl(wrapped, n, until);

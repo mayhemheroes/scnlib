@@ -52,17 +52,18 @@ namespace scn {
               typename ResultRange>
     auto make_scan_result(PreparedRange& prepared,
                           vscan_result<ResultRange> result)
-        -> detail::scan_result_for_range<OriginalRange>
+        -> detail::result_type_for_t<wrapped_error, OriginalRange>
     {
+        auto&& pr = prepared.get();
         return detail::wrap_result(Error{result.err},
-                                   detail::range_tag<OriginalRange>{}, prepared,
+                                   detail::range_tag<OriginalRange>{}, pr,
                                    SCN_MOVE(result.range));
     }
 
     namespace detail {
         template <typename Range, typename Format, typename... Args>
         auto scan_boilerplate(Range&& r, const Format& f, Args&... a)
-            -> detail::scan_result_for_range<Range>
+            -> detail::result_type_for_t<wrapped_error, Range>
         {
             static_assert(sizeof...(Args) > 0,
                           "Have to scan at least a single argument");
@@ -78,7 +79,7 @@ namespace scn {
 
         template <typename Range, typename... Args>
         auto scan_boilerplate_default(Range&& r, Args&... a)
-            -> detail::scan_result_for_range<Range>
+            -> detail::result_type_for_t<wrapped_error, Range>
         {
             static_assert(sizeof...(Args) > 0,
                           "Have to scan at least a single argument");
@@ -100,7 +101,7 @@ namespace scn {
                                         Range&& r,
                                         const Format& f,
                                         Args&... a)
-            -> detail::scan_result_for_range<Range>
+            -> detail::result_type_for_t<wrapped_error, Range>
         {
             static_assert(sizeof...(Args) > 0,
                           "Have to scan at least a single argument");
@@ -139,11 +140,11 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename Range, typename Format, typename... Args>
     auto scan(Range&& r, const Format& f, Args&... a)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename Format, typename... Args>
     SCN_NODISCARD auto scan(Range&& r, const Format& f, Args&... a)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         return detail::scan_boilerplate(SCN_FWD(r), f, a...);
     }
@@ -169,11 +170,11 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename Range, typename... Args>
     auto scan_default(Range&& r, Args&... a)
-        -> detail::scan_result_for_range<Range>;
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Range, typename... Args>
     SCN_NODISCARD auto scan_default(Range&& r, Args&... a)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         return detail::scan_boilerplate_default(SCN_FWD(r), a...);
     }
@@ -207,7 +208,8 @@ namespace scn {
     auto scan_localized(const Locale& loc,
                         Range&& r,
                         const Format& f,
-                        Args&... a) -> detail::scan_result_for_range<Range>;
+                        Args&... a)
+        -> detail::result_type_for_t<wrapped_error, Range>;
 #else
     template <typename Locale,
               typename Range,
@@ -217,7 +219,7 @@ namespace scn {
                                       Range&& r,
                                       const Format& f,
                                       Args&... a)
-        -> detail::scan_result_for_range<Range>
+        -> detail::result_type_for_t<wrapped_error, Range>
     {
         return detail::scan_boilerplate_localized(loc, SCN_FWD(r), f, a...);
     }
@@ -242,12 +244,11 @@ namespace scn {
      */
 #if SCN_DOXYGEN
     template <typename T, typename Range>
-    auto scan_value(Range&& r)
-        -> detail::generic_scan_result_for_range<expected<T>, Range>;
+    auto scan_value(Range&& r) -> detail::result_type_for_t<expected<T>, Range>;
 #else
     template <typename T, typename Range>
     SCN_NODISCARD auto scan_value(Range&& r)
-        -> detail::generic_scan_result_for_range<expected<T>, Range>
+        -> detail::result_type_for_t<expected<T>, Range>
     {
         T value;
         auto range = prepare(r);
@@ -276,10 +277,10 @@ namespace scn {
               typename CharT = ranges::range_value_t<Format>>
 #if SCN_DOXYGEN
     auto input(const Format& f, Args&... a)
-        -> detail::scan_result_for_range<basic_file<CharT>&>;
+        -> detail::result_type_for_t<wrapped_error, basic_file<CharT>&>;
 #else
     SCN_NODISCARD auto input(const Format& f, Args&... a)
-        -> detail::scan_result_for_range<basic_file<CharT>&>
+        -> detail::result_type_for_t<wrapped_error, basic_file<CharT>&>
     {
         auto& range = stdin_range<CharT>();
         auto ret = detail::scan_boilerplate(range, f, a...);
@@ -316,11 +317,11 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename CharT, typename Format, typename... Args>
     auto prompt(const CharT* p, const Format& f, Args&... a)
-        -> detail::scan_result_for_range<basic_file<CharT>&>;
+        -> detail::result_type_for_t<wrapped_error, basic_file<CharT>&>;
 #else
     template <typename CharT, typename Format, typename... Args>
     SCN_NODISCARD auto prompt(const CharT* p, const Format& f, Args&... a)
-        -> detail::scan_result_for_range<basic_file<CharT>&>
+        -> detail::result_type_for_t<wrapped_error, basic_file<CharT>&>
     {
         SCN_EXPECT(p != nullptr);
         detail::put_stdout(p);

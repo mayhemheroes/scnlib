@@ -255,7 +255,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    SCN_FUNC error basic_file<CharT>::_read_chars(std::size_t n)
+    error basic_file<CharT>::_read_chars(std::size_t n)
     {
         SCN_EXPECT(valid());
         SCN_EXPECT(_get_buffer_for_reading().size() >= n);
@@ -267,7 +267,7 @@ namespace scn {
     }
 
     template <typename CharT>
-    SCN_FUNC error basic_file<CharT>::_get_more()
+    error basic_file<CharT>::_get_more()
     {
         SCN_EXPECT(valid());
         SCN_EXPECT(!m_eof_reached);
@@ -361,40 +361,6 @@ namespace scn {
 #endif
     }
 
-    template <>
-    expected<char> file::iterator::operator*() const;
-    template <>
-    expected<wchar_t> wfile::iterator::operator*() const;
-    template <>
-    file::iterator& file::iterator::operator++();
-    template <>
-    wfile::iterator& wfile::iterator::operator++();
-    template <>
-    bool file::iterator::operator==(const file::iterator&) const;
-    template <>
-    bool wfile::iterator::operator==(const wfile::iterator&) const;
-
-    template <>
-    error file::_read_single();
-    template <>
-    error wfile::_read_single();
-    template <>
-    error file::_read_line();
-    template <>
-    error wfile::_read_line();
-    template <>
-    error file::_read_chars(std::size_t);
-    template <>
-    error wfile::_read_chars(std::size_t);
-    template <>
-    error file::_get_more();
-    template <>
-    error wfile::_get_more();
-    template <>
-    void file::_init();
-    template <>
-    void wfile::_init();
-
     namespace detail {
         template <typename CharT>
         struct basic_file_iterator_access {
@@ -475,46 +441,32 @@ namespace scn {
         };
     }  // namespace detail
 
-    template <>
-    SCN_FUNC basic_file<char>::iterator&
-    basic_file<char>::iterator::operator++()
+    template <typename CharT>
+    typename basic_file<CharT>::iterator&
+    basic_file<CharT>::iterator::operator++()
     {
         SCN_EXPECT(m_file);
-        detail::basic_file_iterator_access<char>(*this).inc();
-        return *this;
-    }
-    template <>
-    SCN_FUNC basic_file<wchar_t>::iterator&
-    basic_file<wchar_t>::iterator::operator++()
-    {
-        SCN_EXPECT(m_file);
-        detail::basic_file_iterator_access<wchar_t>(*this).inc();
+        detail::basic_file_iterator_access<CharT>(*this).inc();
         return *this;
     }
 
-    template <>
-    SCN_FUNC expected<char> basic_file<char>::iterator::operator*() const
+    template <typename CharT>
+    expected<CharT> basic_file<CharT>::iterator::operator*() const
     {
-        return detail::basic_file_iterator_access<char>(*this).deref();
-    }
-    template <>
-    SCN_FUNC expected<wchar_t> basic_file<wchar_t>::iterator::operator*() const
-    {
-        return detail::basic_file_iterator_access<wchar_t>(*this).deref();
+        return detail::basic_file_iterator_access<CharT>(*this).deref();
     }
 
-    template <>
-    SCN_FUNC bool basic_file<char>::iterator::operator==(
-        const basic_file<char>::iterator& o) const
+    template <typename CharT>
+    bool basic_file<CharT>::iterator::operator==(
+        const typename basic_file<CharT>::iterator& o) const
     {
-        return detail::basic_file_iterator_access<char>(*this).eq(o);
+        return detail::basic_file_iterator_access<CharT>(*this).eq(o);
     }
-    template <>
-    SCN_FUNC bool basic_file<wchar_t>::iterator::operator==(
-        const basic_file<wchar_t>::iterator& o) const
-    {
-        return detail::basic_file_iterator_access<wchar_t>(*this).eq(o);
-    }
+
+#if SCN_INCLUDE_SOURCE_DEFINITIONS
+    template class basic_file<char>;
+    template class basic_file<wchar_t>;
+#endif
 
 #if 0
             namespace detail {

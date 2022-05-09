@@ -75,12 +75,13 @@ namespace scn {
             using sentinel = ranges::sentinel_t<range_type>;
             using char_type = typename extract_char_type<iterator>::type;
 
-            static constexpr bool enable_contigous_access =
+            static constexpr bool enable_contiguous_access =
                 SCN_CHECK_CONCEPT(ranges::contiguous_range<Range>);
 
             result_range_storage_for_view(range_type r) : range(SCN_MOVE(r)) {}
 
-            iterator get_begin() const noexcept(noexcept(ranges::begin(range)))
+            iterator get_begin() const noexcept(
+                noexcept(ranges::begin(SCN_DECLVAL(const range_type&))))
             {
                 return ranges::begin(range);
             }
@@ -109,7 +110,7 @@ namespace scn {
             using difference_type = ranges::range_difference_t<range_type>;
             using char_type = typename extract_char_type<iterator>::type;
 
-            static constexpr bool enable_contigous_access = false;
+            static constexpr bool enable_contiguous_access = false;
 
             result_range_storage_general_base(range_type r,
                                               difference_type begin_diff)
@@ -196,7 +197,8 @@ namespace scn {
             }
 
             /// Beginning of the leftover range
-            iterator begin() const noexcept(noexcept(m_storage.get_begin()))
+            iterator begin() const
+                noexcept(noexcept(SCN_DECLVAL(const storage_type&).get_begin()))
             {
                 return m_storage.get_begin();
             }
@@ -206,8 +208,8 @@ namespace scn {
             // a part of the definition of end()
         public:
             /// End of the leftover range
-            sentinel end() const
-                noexcept(noexcept(ranges::end(m_storage.range)))
+            sentinel end() const noexcept(
+                noexcept(ranges::end(SCN_DECLVAL(const storage_type&).range)))
             {
                 return ranges::end(m_storage.range);
             }
@@ -257,9 +259,9 @@ namespace scn {
              * reference to the leftover range, so be wary of
              * use-after-free-problems.
              */
-            template <typename R = range_type,
+            template <typename S = storage_type,
                       typename = typename std::enable_if<
-                          storage_type::enable_contiguous_access>::type>
+                          S::enable_contiguous_access>::type>
             basic_string_view<char_type> range_as_string_view() const
             {
                 return {
@@ -274,9 +276,9 @@ namespace scn {
              * reference to the leftover range, so be wary of
              * use-after-free-problems.
              */
-            template <typename R = range_type,
+            template <typename S = storage_type,
                       typename = typename std::enable_if<
-                          storage_type::enable_contiguous_access>::type>
+                          S::enable_contiguous_access>::type>
             span<const char_type> range_as_span() const
             {
                 return {
@@ -288,9 +290,9 @@ namespace scn {
              * Return the leftover range as a string. The contents are copied
              * into the string, so using this will not lead to lifetime issues.
              */
-            template <typename R = range_type,
+            template <typename S = storage_type,
                       typename = typename std::enable_if<
-                          storage_type::enable_contiguous_access>::type>
+                          S::enable_contiguous_access>::type>
             std::basic_string<char_type> range_as_string() const
             {
                 return {
@@ -298,6 +300,15 @@ namespace scn {
                     static_cast<std::size_t>(ranges::size(m_storage.range))};
             }
             /// @}
+
+            storage_type& get_storage()
+            {
+                return m_storage;
+            }
+            const storage_type& get_storage() const
+            {
+                return m_storage;
+            }
 
         private:
             /**
@@ -342,6 +353,23 @@ namespace scn {
             non_reconstructed_scan_result(Base&& b, Storage&& s)
                 : base(SCN_MOVE(b), SCN_MOVE(s))
             {
+            }
+
+            non_reconstructed_scan_result& operator=(
+                const reconstructed_scan_result<Storage, Base>& other)
+            {
+                scan_result_base_wrapper<Base>::set_base(other);
+                base::get_storage() = other.get_storage();
+                return *this;
+            }
+
+            template <typename OR>
+            non_reconstructed_scan_result& operator=(
+                const non_reconstructed_scan_result<OR, Storage, Base>& other)
+            {
+                scan_result_base_wrapper<Base>::set_base(other);
+                base::get_storage() = other.get_storage();
+                return *this;
             }
 
             template <typename R = OriginalRange>
@@ -553,13 +581,15 @@ namespace scn {
                   typename InputRange,
                   typename PreparedRange = decltype(prepare(SCN_DECLVAL(
                       typename std::remove_reference<InputRange>::type&))),
+                  typename PreparedTargetRange =
+                      decltype(SCN_DECLVAL(PreparedRange&).get()),
                   typename ResultRange = typename PreparedRange::target_type>
         struct result_type_for {
-            using type =
-                decltype(wrap_result(SCN_DECLVAL(Error &&),
-                                     SCN_DECLVAL(range_tag<InputRange>),
-                                     SCN_DECLVAL(PreparedRange&),
-                                     SCN_DECLVAL(ResultRange&&)));
+            using type = decltype(wrap_result(
+                SCN_DECLVAL(Error &&),
+                SCN_DECLVAL(range_tag<InputRange>),
+                SCN_DECLVAL(typename PreparedRange::stored_type&),
+                SCN_DECLVAL(ResultRange&&)));
         };
         template <typename Error, typename InputRange>
         using result_type_for_t =
