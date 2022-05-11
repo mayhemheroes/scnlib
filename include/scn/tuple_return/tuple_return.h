@@ -50,33 +50,25 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename... Args, typename Range, typename Format>
     auto scan_tuple(Range&& r, Format f)
-        -> std::tuple<detail::scan_result_for_range<Range>, Args...>;
+        -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>;
 #else
     template <typename... Args, typename Range, typename Format>
     SCN_NODISCARD auto scan_tuple(Range&& r, Format f)
-        -> std::tuple<detail::scan_result_for_range<Range>, Args...>
+        -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>
     {
-        using result = detail::scan_result_for_range<Range>;
-        using range_type = typename result::wrapped_range_type;
-
-        using context_type = basic_context<range_type>;
-        using parse_context_type =
-            basic_parse_context<typename context_type::locale_type>;
-        using char_type = typename range_type::char_type;
-
-        auto&& range = wrap(r);
+        auto range = prepare(r);
+        auto format = detail::to_format(f);
         auto scanfn = [&range, &f](Args&... a) {
-            auto args = make_args<context_type, parse_context_type>(a...);
-            return vscan(SCN_MOVE(range), basic_string_view<char_type>(f),
-                         {args});
+            auto args = make_args_for(range, format, a...);
+            return vscan(range.get(), format, {args});
         };
 
         std::tuple<Args...> values{Args{}...};
         auto ret = detail::apply(scanfn, values);
         return std::tuple_cat(
-            std::tuple<result>{detail::wrap_result(wrapped_error{ret.err},
-                                                   detail::range_tag<Range>{},
-                                                   SCN_MOVE(ret.range))},
+            std::make_tuple(detail::wrap_result(
+                wrapped_error{ret.err}, detail::range_tag<Range>{}, SCN_FWD(r),
+                SCN_MOVE(ret.range))),
             SCN_MOVE(values));
     }
 #endif
@@ -87,32 +79,25 @@ namespace scn {
 #if SCN_DOXYGEN
     template <typename... Args, typename Range>
     auto scan_tuple_default(Range&& r)
-        -> std::tuple<detail::scan_result_for_range<Range>, Args...>;
+        -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>;
 #else
     template <typename... Args, typename Range>
     SCN_NODISCARD auto scan_tuple_default(Range&& r)
-        -> std::tuple<detail::scan_result_for_range<Range>, Args...>
+        -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>
     {
-        using result = detail::scan_result_for_range<Range>;
-        using range_type = typename result::wrapped_range_type;
-
-        using context_type = basic_context<range_type>;
-        using parse_context_type =
-            basic_empty_parse_context<typename context_type::locale_type>;
-
-        auto&& range = wrap(r);
+        auto range = prepared(r);
+        auto format = static_cast<int>(sizeof...(Args));
         auto scanfn = [&range](Args&... a) {
-            auto args = make_args<context_type, parse_context_type>(a...);
-            return vscan_default(SCN_MOVE(range),
-                                 static_cast<int>(sizeof...(Args)), {args});
+            auto args = make_args_for(range, format, a...);
+            return vscan_default(range.get(), format, {args});
         };
 
         std::tuple<Args...> values{Args{}...};
         auto ret = detail::apply(scanfn, values);
         return std::tuple_cat(
-            std::tuple<result>{detail::wrap_result(wrapped_error{ret.err},
-                                                   detail::range_tag<Range>{},
-                                                   SCN_MOVE(ret.range))},
+            std::make_tuple(detail::wrap_result(
+                wrapped_error{ret.err}, detail::range_tag<Range>{}, SCN_FWD(r),
+                SCN_MOVE(ret.range))),
             SCN_MOVE(values));
     }
 #endif

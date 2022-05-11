@@ -358,6 +358,15 @@ namespace scn {
         class iterator {
             friend class basic_erased_range<CharT>;
 
+            struct arrow_access_proxy {
+                expected<CharT> val;
+
+                const expected<CharT>* operator->() const
+                {
+                    return &val;
+                }
+            };
+
         public:
             using value_type = expected<CharT>;
             using reference = expected<CharT>&;
@@ -371,8 +380,12 @@ namespace scn {
             expected<CharT> operator*() const
             {
                 SCN_EXPECT(m_range);
-                auto ret = m_range->m_impl->get_at(m_index);
-                return ret;
+                return m_range->m_impl->get_at(m_index);
+            }
+            arrow_access_proxy operator->() const
+            {
+                SCN_EXPECT(m_range);
+                return {**this};
             }
 
             iterator& operator++()
@@ -454,7 +467,8 @@ namespace scn {
             }
 
         private:
-            iterator(const basic_erased_range<CharT>& r, std::ptrdiff_t i)
+            iterator(const basic_erased_range<CharT>& r,
+                     std::ptrdiff_t i) noexcept
                 : m_range(const_cast<basic_erased_range<CharT>*>(&r)),
                   m_index(i)
             {
@@ -498,11 +512,11 @@ namespace scn {
             m_begin_index = b.m_index;
         }
 
-        iterator begin() const
+        iterator begin() const noexcept
         {
             return iterator{*this, m_begin_index};
         }
-        sentinel end() const
+        sentinel end() const noexcept
         {
             return {};
         }
@@ -573,21 +587,31 @@ namespace scn {
             return m_end;
         }
 
+        bool empty() const noexcept
+        {
+            return begin() == end();
+        }
+
         span<const char_type> get_buffer(iterator b, std::size_t max_size) const
         {
             SCN_EXPECT(m_begin.get_range());
             return get().get_buffer(b, max_size);
         }
 
-        range_type& get()
+        range_type& get() &
         {
             SCN_EXPECT(m_begin.get_range() != nullptr);
             return *m_begin.get_range();
         }
-        const range_type& get() const
+        const range_type& get() const&
         {
             SCN_EXPECT(m_begin.get_range() != nullptr);
             return *m_begin.get_range();
+        }
+        range_type get() &&
+        {
+            SCN_EXPECT(m_begin.get_range() != nullptr);
+            return SCN_MOVE(*m_begin.get_range());
         }
 
     private:

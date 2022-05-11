@@ -57,7 +57,8 @@ namespace scn {
             auto format = string_view{"[{}, {}]"};
             auto newctx = make_context(ctx.range());
             auto pctx = make_parse_context(format, newctx.locale());
-            auto args = make_args_for(newctx.range(), format, i, j);
+            auto prepared_newrange = prepare(newctx.range());
+            auto args = make_args_for(prepared_newrange, format, i, j);
             auto err = visit(newctx, pctx, {args});
             ctx.range() = std::move(newctx.range());
             if (err) {

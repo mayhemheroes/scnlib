@@ -22,7 +22,9 @@ TEST_CASE_TEMPLATE("read_code_unit", CharT, char, wchar_t)
 {
     SUBCASE("direct")
     {
-        auto range = scn::wrap(widen<CharT>("42"));
+        auto prepared = scn::prepare(widen<CharT>("42"));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_code_unit(range, false);
         CHECK(ret);
         CHECK(ret.value() == scn::detail::ascii_widen<CharT>('4'));
@@ -39,7 +41,9 @@ TEST_CASE_TEMPLATE("read_code_unit", CharT, char, wchar_t)
     }
     SUBCASE("indirect")
     {
-        auto range = scn::wrap(get_indirect<CharT>(widen<CharT>("42")));
+        auto prepared = scn::prepare(get_indirect<CharT>(widen<CharT>("42")));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_code_unit(range, false);
         CHECK(ret);
         CHECK(ret.value() == scn::detail::ascii_widen<CharT>('4'));
@@ -64,7 +68,8 @@ TEST_CASE("read_code_point")
 
     SUBCASE("contiguous")
     {
-        auto range = scn::wrap("aäa");
+        auto prepared = scn::prepare("aäa");
+        auto range = scn::wrap(prepared.get());
 
         auto ret = scn::read_code_point(range, scn::make_span(buf, 4));
         CHECK(ret);
@@ -88,7 +93,8 @@ TEST_CASE("read_code_point")
     }
     SUBCASE("non-direct")
     {
-        auto range = scn::wrap(get_indirect<char>("aäa"));
+        auto prepared = scn::prepare(get_indirect<char>("aäa"));
+        auto range = scn::wrap(prepared.get());
 
         auto ret = scn::read_code_point(range, scn::make_span(buf, 4));
         CHECK(ret);
@@ -108,13 +114,13 @@ TEST_CASE("read_code_point")
         CHECK(ret.value().chars.size() == 1);
         CHECK(ret.value().chars[0] == 'a');
         CHECK(ret.value().cp == scn::make_code_point(0x61));
-        CHECK(range.size() == 1);
         CHECK(range.begin()->error().code() == scn::error::end_of_range);
     }
 
     SUBCASE("wide contiguous")
     {
-        auto range = scn::wrap(L"aäa");
+        auto prepared = scn::prepare(L"aäa");
+        auto range = scn::wrap(prepared.get());
 
         auto ret = scn::read_code_point(range, scn::make_span(buf, 4));
         CHECK(ret);
@@ -138,7 +144,8 @@ TEST_CASE("read_code_point")
     }
     SUBCASE("wide non-direct")
     {
-        auto range = scn::wrap(get_indirect<wchar_t>(L"aäa"));
+        auto prepared = scn::prepare(get_indirect<wchar_t>(L"aäa"));
+        auto range = scn::wrap(prepared.get());
 
         auto ret = scn::read_code_point(range, scn::make_span(buf, 4));
         CHECK(ret);
@@ -158,7 +165,6 @@ TEST_CASE("read_code_point")
         CHECK(ret.value().chars.size() == 1);
         CHECK(ret.value().chars[0] == L'a');
         CHECK(ret.value().cp == scn::make_code_point(0x61));
-        CHECK(range.size() == 1);
         CHECK(range.begin()->error().code() == scn::error::end_of_range);
     }
 }
@@ -168,7 +174,9 @@ TEST_CASE_TEMPLATE("read_zero_copy", CharT, char, wchar_t)
 {
     SUBCASE("contiguous")
     {
-        auto range = scn::wrap(widen<CharT>("123"));
+        auto prepared = scn::prepare(widen<CharT>("123"));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_zero_copy(range, 2);
         CHECK(ret);
         CHECK(ret.value().size() == 2);
@@ -185,13 +193,15 @@ TEST_CASE_TEMPLATE("read_zero_copy", CharT, char, wchar_t)
 
     SUBCASE("non-contiguous")
     {
-        auto range = scn::wrap(get_deque<CharT>());
+        auto prepared = scn::prepare(get_deque<CharT>());
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_zero_copy(range, 2);
         CHECK(ret);
         CHECK(ret.value().size() == 0);
-        CHECK(range.size() == 3);
 
-        range = scn::wrap(get_empty_deque<CharT>());
+        prepared = scn::prepare(get_empty_deque<CharT>());
+        range = scn::wrap(prepared.get());
         ret = scn::read_zero_copy(range, 2);
         CHECK(!ret);
         CHECK(ret.error() == scn::error::end_of_range);
@@ -202,7 +212,9 @@ TEST_CASE_TEMPLATE("read_all_zero_copy", CharT, char, wchar_t)
 {
     SUBCASE("contiguous")
     {
-        auto range = scn::wrap(widen<CharT>("123"));
+        auto prepared = scn::prepare(widen<CharT>("123"));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_all_zero_copy(range);
         CHECK(ret);
         CHECK(ret.value().size() == 3);
@@ -218,13 +230,15 @@ TEST_CASE_TEMPLATE("read_all_zero_copy", CharT, char, wchar_t)
 
     SUBCASE("non-contiguous")
     {
-        auto range = scn::wrap(get_deque<CharT>());
+        auto prepared = scn::prepare(get_deque<CharT>());
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_all_zero_copy(range);
         CHECK(ret);
         CHECK(ret.value().size() == 0);
-        CHECK(range.size() == 3);
 
-        range = scn::wrap(get_empty_deque<CharT>());
+        prepared = scn::prepare(get_empty_deque<CharT>());
+        range = scn::wrap(prepared.get());
         ret = scn::read_all_zero_copy(range);
         CHECK(!ret);
         CHECK(ret.error() == scn::error::end_of_range);
@@ -235,7 +249,9 @@ TEST_CASE_TEMPLATE("read_into", CharT, char, wchar_t)
 {
     SUBCASE("contiguous + direct")
     {
-        auto range = scn::wrap(widen<CharT>("123"));
+        auto prepared = scn::prepare(widen<CharT>("123"));
+        auto range = scn::wrap(prepared.get());
+
         std::vector<CharT> data{};
         auto it = std::back_inserter(data);
         auto ret = scn::read_into(range, it, 2);
@@ -260,7 +276,9 @@ TEST_CASE_TEMPLATE("read_into", CharT, char, wchar_t)
 
     SUBCASE("direct")
     {
-        auto range = scn::wrap(get_deque<CharT>());
+        auto prepared = scn::prepare(get_deque<CharT>());
+        auto range = scn::wrap(prepared.get());
+
         std::vector<CharT> data{};
         auto it = std::back_inserter(data);
         auto ret = scn::read_into(range, it, 2);
@@ -285,7 +303,9 @@ TEST_CASE_TEMPLATE("read_into", CharT, char, wchar_t)
 
     SUBCASE("indirect")
     {
-        auto range = scn::wrap(get_indirect<CharT>(widen<CharT>("123")));
+        auto prepared = scn::prepare(get_indirect<CharT>(widen<CharT>("123")));
+        auto range = scn::wrap(prepared.get());
+
         std::vector<CharT> data{};
         auto it = std::back_inserter(data);
         auto ret = scn::read_into(range, it, 2);
@@ -319,7 +339,9 @@ TEST_CASE_TEMPLATE("read_until_space_zero_copy no final space",
 
     SUBCASE("contiguous")
     {
-        auto range = scn::wrap(widen<CharT>("123 456"));
+        auto prepared = scn::prepare(widen<CharT>("123 456"));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_until_space_zero_copy(range, pred, false);
         CHECK(ret);
         CHECK(ret.value().size() == 3);
@@ -342,7 +364,9 @@ TEST_CASE_TEMPLATE("read_until_space_zero_copy no final space",
 
     SUBCASE("non-contiguous")
     {
-        auto range = scn::wrap(get_deque<CharT>(widen<CharT>("123 456")));
+        auto prepared = scn::prepare(get_deque<CharT>(widen<CharT>("123 456")));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_until_space_zero_copy(range, pred, false);
         CHECK(ret);
         CHECK(ret.value().size() == 0);
@@ -364,7 +388,9 @@ TEST_CASE_TEMPLATE("read_until_space_zero_copy keep final space",
 
     SUBCASE("contiguous")
     {
-        auto range = scn::wrap(widen<CharT>("123 456"));
+        auto prepared = scn::prepare(widen<CharT>("123 456"));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_until_space_zero_copy(range, pred, true);
         CHECK(ret);
         CHECK(ret.value().size() == 4);
@@ -385,7 +411,9 @@ TEST_CASE_TEMPLATE("read_until_space_zero_copy keep final space",
 
     SUBCASE("non-contiguous")
     {
-        auto range = scn::wrap(get_deque<CharT>(widen<CharT>("123 456")));
+        auto prepared = scn::prepare(get_deque<CharT>(widen<CharT>("123 456")));
+        auto range = scn::wrap(prepared.get());
+
         auto ret = scn::read_until_space_zero_copy(range, pred, true);
         CHECK(ret);
         CHECK(ret.value().size() == 0);
@@ -401,7 +429,9 @@ TEST_CASE("putback_n")
 {
     SUBCASE("contiguous")
     {
-        auto range = scn::wrap("abc");
+        auto prepared = scn::prepare("abc");
+        auto range = scn::wrap(prepared.get());
+
         range.advance(2);
 
         auto e = scn::putback_n(range, 2);
@@ -410,12 +440,13 @@ TEST_CASE("putback_n")
     }
     SUBCASE("non-contiguous")
     {
-        auto range = scn::wrap(get_deque<char>("abc"));
+        auto prepared = scn::prepare(get_deque<char>("abc"));
+        auto range = scn::wrap(prepared.get());
+
         range.advance(2);
 
         auto e = scn::putback_n(range, 2);
         CHECK(e);
-        CHECK(range.size() == 3);
-        CHECK(*range.begin() == 'a');
+        CHECK(range.begin()->value() == 'a');
     }
 }

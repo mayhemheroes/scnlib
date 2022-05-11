@@ -21,6 +21,7 @@
 template <typename T>
 struct debug;
 
+#if 0
 TEST_CASE("string lvalue")
 {
     int a;
@@ -153,6 +154,7 @@ TEST_CASE("mapped_file")
                          scn::mapped_file, scn::wrapped_error>>::value,
         "");
 }
+#endif
 
 TEST_CASE("get_buffer")
 {

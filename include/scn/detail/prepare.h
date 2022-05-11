@@ -48,6 +48,7 @@ namespace scn {
 
     namespace _prepare {
         // erased_range& -> ready<erased_view>
+        // erased_view -> ready<erased_view>
         // string&& -> pending<string, string_view>
         // string-like -> ready<string_view>
         // other -> pending<erased_range, erased_view>
@@ -63,6 +64,13 @@ namespace scn {
                                          basic_erased_range<CharT>&>::value)
             {
                 return {range};
+            }
+            template <typename CharT>
+            static ready_prepared_range<basic_erased_view<CharT>> impl(
+                basic_erased_view<CharT> range,
+                detail::priority_tag<4>) noexcept
+            {
+                return {SCN_MOVE(range)};
             }
 
             template <typename CharT, std::size_t N>

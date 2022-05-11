@@ -74,6 +74,7 @@ namespace scn {
             using iterator = ranges::iterator_t<range_type>;
             using sentinel = ranges::sentinel_t<range_type>;
             using char_type = typename extract_char_type<iterator>::type;
+            using returned_range_type = range_type;
 
             static constexpr bool enable_contiguous_access =
                 SCN_CHECK_CONCEPT(ranges::contiguous_range<Range>);
@@ -138,6 +139,7 @@ namespace scn {
             : public result_range_storage_general_base<Range> {
             using base = result_range_storage_general_base<Range>;
             using char_type = typename Range::value_type;
+            using returned_range_type = basic_string_view<char_type>;
 
             using base::base;
 
@@ -152,6 +154,7 @@ namespace scn {
             : public result_range_storage_general_base<Range> {
             using base = result_range_storage_general_base<Range>;
             using char_type = typename Range::char_type;
+            using returned_range_type = basic_erased_view<char_type>;
 
             using base::base;
 
@@ -235,7 +238,7 @@ namespace scn {
              *
              * \see range_wrapper
              */
-            range_type range()
+            auto range() -> typename storage_type::returned_range_type
             {
                 return m_storage.get_range();
             }
@@ -355,6 +358,7 @@ namespace scn {
             {
             }
 
+            // reconstructed_scan_result with matching Storage and Base
             non_reconstructed_scan_result& operator=(
                 const reconstructed_scan_result<Storage, Base>& other)
             {
@@ -363,12 +367,54 @@ namespace scn {
                 return *this;
             }
 
+            // non_reconstructed_scan_result with matching Storage and Base
+            // (different OriginalRange)
             template <typename OR>
             non_reconstructed_scan_result& operator=(
                 const non_reconstructed_scan_result<OR, Storage, Base>& other)
             {
                 scan_result_base_wrapper<Base>::set_base(other);
                 base::get_storage() = other.get_storage();
+                return *this;
+            }
+
+            // reconstructed_scan_result with erased_view storage,
+            // when *this has erased_range storage
+            template <typename CharT,
+                      typename std::enable_if<std::is_same<
+                          Storage,
+                          result_range_storage_erased<basic_erased_range<
+                              CharT>>>::value>::type* = nullptr>
+            non_reconstructed_scan_result& operator=(
+                const reconstructed_scan_result<
+                    result_range_storage_for_view<basic_erased_view<CharT>>,
+                    Base>& other)
+            {
+                scan_result_base_wrapper<Base>::set_base(other);
+                base::get_storage().begin = other.get_storage().get_begin();
+                return *this;
+            }
+
+            // reconstructed_scan_result with string_view storage,
+            // when *this has std::string storage
+            template <typename CharT,
+                      typename std::enable_if<std::is_same<
+                          Storage,
+                          result_range_storage_string<std::basic_string<
+                              CharT>>>::value>::type* = nullptr>
+            non_reconstructed_scan_result& operator=(
+                const reconstructed_scan_result<
+                    result_range_storage_for_view<basic_string_view<CharT>>,
+                    Base>& other)
+            {
+                scan_result_base_wrapper<Base>::set_base(other);
+
+                auto& self_begin = base::get_storage().begin;
+                auto self_begin_addr = to_address(self_begin);
+                auto other_begin_addr =
+                    to_address(other.get_storage().get_begin());
+                self_begin += other_begin_addr - self_begin_addr;
+
                 return *this;
             }
 
@@ -387,37 +433,49 @@ namespace scn {
             struct fn {
             private:
                 // Input = std::string&&
-                // Prepared = std::string&&
                 // Result = string_view
-                template <typename Error,
-                          typename CharT,
-                          typename Allocator,
-                          typename String = std::basic_string<CharT, Allocator>>
-                static auto impl(Error e,
-                                 range_tag<std::basic_string<CharT, Allocator>>,
-                                 std::basic_string<CharT, Allocator>& prepared,
-                                 basic_string_view<CharT> result,
-                                 priority_tag<3>) noexcept
+                template <
+                    typename Error,
+                    typename CharT,
+                    typename Allocator,
+                    typename String = std::
+                        basic_string<CharT, std::char_traits<CharT>, Allocator>>
+                static auto impl(
+                    Error e,
+                    range_tag<std::basic_string<CharT,
+                                                std::char_traits<CharT>,
+                                                Allocator>>,
+                    std::basic_string<CharT, std::char_traits<CharT>, Allocator>
+                        input,
+                    basic_string_view<CharT> result,
+                    priority_tag<3>) noexcept
                     -> non_reconstructed_scan_result<
                         String,
                         result_range_storage_string<String>,
                         Error>
                 {
-                    const auto size_diff = prepared.size() - result.size();
-                    return {SCN_MOVE(e), {SCN_MOVE(prepared), size_diff}};
+                    const auto size_diff = input.size() - result.size();
+                    return {SCN_MOVE(e),
+                            {SCN_MOVE(input),
+                             static_cast<std::ptrdiff_t>(size_diff)}};
                 }
 
                 // Input = std::string&
-                // Prepared = string_view
                 // Result = string_view
-                template <typename Error,
-                          typename CharT,
-                          typename Allocator,
-                          typename String = std::basic_string<CharT, Allocator>>
+                template <
+                    typename Error,
+                    typename CharT,
+                    typename Allocator,
+                    typename String = std::
+                        basic_string<CharT, std::char_traits<CharT>, Allocator>>
                 static auto impl(
                     Error e,
-                    range_tag<std::basic_string<CharT, Allocator>&>,
-                    basic_string_view<CharT>&,
+                    range_tag<std::basic_string<CharT,
+                                                std::char_traits<CharT>,
+                                                Allocator>&>,
+                    std::basic_string<CharT,
+                                      std::char_traits<CharT>,
+                                      Allocator>&,
                     basic_string_view<CharT> result,
                     priority_tag<3>) noexcept
                     -> non_reconstructed_scan_result<
@@ -429,7 +487,6 @@ namespace scn {
                 }
 
                 // Input = C-array &
-                // Prepared = string_view
                 // Result = string_view
                 template <typename Error,
                           typename CharT,
@@ -437,7 +494,7 @@ namespace scn {
                           std::size_t N>
                 static auto impl(Error e,
                                  range_tag<InputCharT (&)[N]>,
-                                 basic_string_view<CharT>&,
+                                 InputCharT (&)[N],
                                  basic_string_view<CharT> result,
                                  priority_tag<3>) noexcept
                     -> reconstructed_scan_result<
@@ -448,12 +505,23 @@ namespace scn {
                 }
 
                 // Input = string_view
-                // Prepared = string_view
                 // Result = string_view
                 template <typename Error, typename CharT>
                 static auto impl(Error e,
+                                 range_tag<basic_string_view<CharT>>,
                                  basic_string_view<CharT>,
-                                 basic_string_view<CharT>&,
+                                 basic_string_view<CharT> result,
+                                 priority_tag<3>) noexcept
+                    -> reconstructed_scan_result<
+                        result_range_storage_for_view<basic_string_view<CharT>>,
+                        Error>
+                {
+                    return {SCN_MOVE(e), {SCN_MOVE(result)}};
+                }
+                template <typename Error, typename CharT>
+                static auto impl(Error e,
+                                 range_tag<basic_string_view<CharT>&>,
+                                 basic_string_view<CharT>,
                                  basic_string_view<CharT> result,
                                  priority_tag<3>) noexcept
                     -> reconstructed_scan_result<
@@ -464,12 +532,11 @@ namespace scn {
                 }
 
                 // Input = string-like view
-                // Prepared = string_view
                 // Result = string_view
                 template <typename Error, typename InputRange, typename CharT>
                 static auto impl(Error e,
                                  range_tag<InputRange>,
-                                 basic_string_view<CharT>&,
+                                 const InputRange&,
                                  basic_string_view<CharT> result,
                                  priority_tag<2>)
                     -> non_reconstructed_scan_result<
@@ -481,12 +548,23 @@ namespace scn {
                 }
 
                 // Input = erased_view
-                // Prepared = erased_view
                 // Result = erased_view
                 template <typename Error, typename CharT>
                 static auto impl(Error e,
                                  range_tag<basic_erased_view<CharT>>,
-                                 basic_erased_view<CharT>&,
+                                 basic_erased_view<CharT>,
+                                 basic_erased_view<CharT> result,
+                                 priority_tag<1>) noexcept
+                    -> reconstructed_scan_result<
+                        result_range_storage_for_view<basic_erased_view<CharT>>,
+                        Error>
+                {
+                    return {SCN_MOVE(e), {SCN_MOVE(result)}};
+                }
+                template <typename Error, typename CharT>
+                static auto impl(Error e,
+                                 range_tag<basic_erased_view<CharT>&>,
+                                 basic_erased_view<CharT>,
                                  basic_erased_view<CharT> result,
                                  priority_tag<1>) noexcept
                     -> reconstructed_scan_result<
@@ -497,12 +575,11 @@ namespace scn {
                 }
 
                 // Input = erased_range&
-                // Prepared = erased_view
                 // Result = erased_view
                 template <typename Error, typename CharT>
                 static auto impl(Error e,
                                  range_tag<basic_erased_range<CharT>&>,
-                                 basic_erased_view<CharT>&,
+                                 const basic_erased_range<CharT>&,
                                  basic_erased_view<CharT> result,
                                  priority_tag<1>) noexcept
                     -> non_reconstructed_scan_result<
@@ -514,12 +591,11 @@ namespace scn {
                 }
 
                 // Input = erased_range&&
-                // Prepared = erased_range
                 // Result = erased_view
                 template <typename Error, typename CharT>
                 static auto impl(Error e,
                                  range_tag<basic_erased_range<CharT>>,
-                                 basic_erased_range<CharT>&,
+                                 const basic_erased_range<CharT>&,
                                  basic_erased_view<CharT> result,
                                  priority_tag<1>)
                     -> non_reconstructed_scan_result<
@@ -531,16 +607,22 @@ namespace scn {
                 }
 
                 // Input = Range
-                // Prepared = erased_range
                 // Result = erased_view
-                template <typename Error, typename InputRange, typename CharT>
+                template <typename Error,
+                          typename InputRangeTag,
+                          typename InputRangeValue,
+                          typename CharT,
+                          typename std::enable_if<std::is_same<
+                              remove_cvref_t<InputRangeTag>,
+                              remove_cvref_t<InputRangeValue>>::value>::type* =
+                              nullptr>
                 static auto impl(Error e,
-                                 range_tag<InputRange>,
-                                 basic_erased_range<CharT>&,
+                                 range_tag<InputRangeTag>,
+                                 const InputRangeValue&,
                                  basic_erased_view<CharT> result,
                                  priority_tag<0>)
                     -> non_reconstructed_scan_result<
-                        remove_cvref_t<InputRange>,
+                        remove_cvref_t<InputRangeTag>,
                         result_range_storage_erased<basic_erased_range<CharT>>,
                         Error>
                 {
@@ -549,25 +631,25 @@ namespace scn {
 
             public:
                 template <typename Error,
-                          typename InputRange,
-                          typename PreparedRange,
+                          typename InputRangeTag,
+                          typename InputRangeValue,
                           typename ResultRange>
                 auto operator()(Error e,
-                                range_tag<InputRange> tag,
-                                PreparedRange& prepared,
+                                range_tag<InputRangeTag> tag,
+                                InputRangeValue&& input,
                                 ResultRange result) const
                     noexcept(noexcept(fn::impl(SCN_MOVE(e),
                                                tag,
-                                               prepared,
+                                               SCN_FWD(input),
                                                SCN_MOVE(result),
                                                priority_tag<3>{})))
                         -> decltype(fn::impl(SCN_MOVE(e),
                                              tag,
-                                             prepared,
+                                             SCN_FWD(input),
                                              SCN_MOVE(result),
                                              priority_tag<3>{}))
                 {
-                    return fn::impl(SCN_MOVE(e), tag, prepared,
+                    return fn::impl(SCN_MOVE(e), tag, SCN_FWD(input),
                                     SCN_MOVE(result), priority_tag<3>{});
                 }
             };
@@ -585,11 +667,11 @@ namespace scn {
                       decltype(SCN_DECLVAL(PreparedRange&).get()),
                   typename ResultRange = typename PreparedRange::target_type>
         struct result_type_for {
-            using type = decltype(wrap_result(
-                SCN_DECLVAL(Error &&),
-                SCN_DECLVAL(range_tag<InputRange>),
-                SCN_DECLVAL(typename PreparedRange::stored_type&),
-                SCN_DECLVAL(ResultRange&&)));
+            using type =
+                decltype(wrap_result(SCN_DECLVAL(Error &&),
+                                     SCN_DECLVAL(range_tag<InputRange>),
+                                     SCN_DECLVAL(InputRange&&),
+                                     SCN_DECLVAL(ResultRange&&)));
         };
         template <typename Error, typename InputRange>
         using result_type_for_t =
@@ -601,7 +683,7 @@ namespace scn {
     {
         auto prepared = prepare(r);
         return detail::wrap_result(Error{}, detail::range_tag<Range>{},
-                                   prepared, prepared.get());
+                                   SCN_FWD(r), prepared.get());
     }
 
     SCN_END_NAMESPACE

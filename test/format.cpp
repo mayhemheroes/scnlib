@@ -72,8 +72,7 @@ TEST_CASE("align")
     {
         auto e = scn::scan(get_deque<char>("   a   b"), "{:^}", a);
         CHECK(e);
-        CHECK(e.range().size() == 1);
-        CHECK(*e.range().begin() == 'b');
+        CHECK(e.range().begin()->value() == 'b');
         CHECK(a.ch == 'a');
     }
 }

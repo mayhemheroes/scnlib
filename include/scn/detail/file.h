@@ -419,6 +419,81 @@ namespace scn {
     extern template bool basic_file<wchar_t>::iterator::operator==(
         const basic_file<wchar_t>::iterator&) const;
 
+    /**
+     * A child class for basic_file, handling fopen, fclose, and lifetimes with
+     * RAII.
+     */
+    template <typename CharT>
+    class basic_owning_file : public basic_file<CharT> {
+    public:
+        using char_type = CharT;
+
+        /// Open an empty file
+        basic_owning_file() = default;
+        /// Open a file, with fopen arguments
+        basic_owning_file(const char* f, const char* mode)
+            : basic_file<CharT>(std::fopen(f, mode))
+        {
+        }
+
+        /// Steal ownership of a FILE*
+        explicit basic_owning_file(FILE* f) : basic_file<CharT>(f) {}
+
+        ~basic_owning_file()
+        {
+            if (is_open()) {
+                close();
+            }
+        }
+
+        /// fopen
+        bool open(const char* f, const char* mode)
+        {
+            SCN_EXPECT(!is_open());
+
+            auto h = std::fopen(f, mode);
+            if (!h) {
+                return false;
+            }
+
+            const bool is_wide = sizeof(CharT) > 1;
+            auto ret = std::fwide(h, is_wide ? 1 : -1);
+            if ((is_wide && ret > 0) || (!is_wide && ret < 0) || ret == 0) {
+                this->set_handle(h);
+                return true;
+            }
+            return false;
+        }
+        /// Steal ownership
+        bool open(FILE* f)
+        {
+            SCN_EXPECT(!is_open());
+            if (std::ferror(f) != 0) {
+                return false;
+            }
+            this->set_handle(f);
+            return true;
+        }
+
+        /// Close file
+        void close()
+        {
+            SCN_EXPECT(is_open());
+            this->sync();
+            std::fclose(this->handle());
+            this->set_handle(nullptr, false);
+        }
+
+        /// Is the file open
+        SCN_NODISCARD bool is_open() const
+        {
+            return this->valid();
+        }
+    };
+
+    using owning_file = basic_owning_file<char>;
+    using owning_wfile = basic_owning_file<wchar_t>;
+
     SCN_CLANG_PUSH
     SCN_CLANG_IGNORE("-Wexit-time-destructors")
 

@@ -141,18 +141,16 @@ namespace scn {
         auto prepared = prepare(r);
         auto range = wrap(prepared.get());
 
-        auto err = getline_impl(range, str, until);
+        auto err = detail::getline_impl(range, str, until);
         if (!err) {
-            auto e = range.reset_to_rollback_point();
-            if (!e) {
-                err = e;
-            }
+            range.reset_to_rollback_point();
         }
         else {
             range.set_rollback_point();
         }
+
         return detail::wrap_result(wrapped_error{err},
-                                   detail::range_tag<Range>{},
+                                   detail::range_tag<Range>{}, SCN_FWD(r),
                                    range.reconstructed());
     }
 #endif

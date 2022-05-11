@@ -92,51 +92,9 @@ TEST_CASE("expected")
     }
 }
 
-TEST_CASE("wrap_result")
+TEST_CASE("reassign")
 {
-    SUBCASE("string_view")
-    {
-        auto source = scn::string_view{"123"};
-        auto wrapped = scn::wrap(source);
-
-        auto result = scn::detail::wrap_result(
-            scn::wrapped_error{}, scn::detail::range_tag<scn::string_view>{},
-            SCN_MOVE(wrapped));
-
-        static_assert(
-            std::is_same<decltype(result),
-                         scn::detail::reconstructed_scan_result<
-                             scn::detail::range_wrapper<scn::string_view>,
-                             scn::wrapped_error>>::value,
-            "");
-
-        result = scn::detail::wrap_result(
-            scn::wrapped_error{},
-            scn::detail::range_tag<decltype(SCN_MOVE(result).range())>{},
-            SCN_MOVE(result).range());
-    }
-
-    SUBCASE("string")
-    {
-        auto source = std::string{"123"};
-        auto wrapped = scn::wrap(source);
-
-        auto result = scn::detail::wrap_result(
-            scn::wrapped_error{}, scn::detail::range_tag<std::string>{},
-            SCN_MOVE(wrapped));
-
-        static_assert(std::is_same<decltype(result),
-                                   scn::detail::non_reconstructed_scan_result<
-                                       scn::detail::range_wrapper<std::string>,
-                                       std::string, scn::wrapped_error>>::value,
-                      "");
-    }
-}
-
-TEST_CASE("reassign") {
     int i{};
     auto ret = scn::scan(std::string{"123"}, "{}", i);
-    debug<decltype(ret)>{};
-    debug<decltype(ret.range())>{};
-    //ret = scn::scan(ret.range(), "{}", i);
+    ret = scn::scan(ret.range(), "{}", i);
 }

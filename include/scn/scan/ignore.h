@@ -135,19 +135,19 @@ namespace scn {
     SCN_NODISCARD auto ignore_until(Range&& r, Until until)
         -> detail::result_type_for_t<wrapped_error, Range>
     {
-        auto&& wrapped = wrap(r);
+        auto prepared = prepare(r);
+        auto wrapped = wrap(prepared.get());
+
         auto err = detail::ignore_until_impl(wrapped, until);
         if (!err) {
-            auto e = wrapped.reset_to_rollback_point();
-            if (!e) {
-                err = e;
-            }
+            wrapped.reset_to_rollback_point();
         }
         else {
             wrapped.set_rollback_point();
         }
-        return detail::wrap_result(
-            wrapped_error{err}, detail::range_tag<Range>{}, SCN_MOVE(wrapped));
+        return detail::wrap_result(wrapped_error{err},
+                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   wrapped.reconstructed());
     }
 #endif
 
@@ -171,16 +171,16 @@ namespace scn {
                                       Until until)
         -> detail::result_type_for_t<wrapped_error, Range>
     {
-        auto&& wrapped = wrap(r);
+        auto prepared = prepare(r);
+        auto wrapped = wrap(prepared.get());
+
         auto err = detail::ignore_until_n_impl(wrapped, n, until);
         if (!err) {
-            auto e = wrapped.reset_to_rollback_point();
-            if (!e) {
-                err = e;
-            }
+            wrapped.reset_to_rollback_point();
         }
-        return detail::wrap_result(
-            wrapped_error{err}, detail::range_tag<Range>{}, SCN_MOVE(wrapped));
+        return detail::wrap_result(wrapped_error{err},
+                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   wrapped.reconstructed());
     }
 #endif
 
