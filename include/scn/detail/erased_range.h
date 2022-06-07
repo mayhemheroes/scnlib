@@ -103,29 +103,6 @@ namespace scn {
 
             virtual error do_advance_current(std::ptrdiff_t) = 0;
         };
-
-        template <typename T>
-        using _erased_range_impl_marker = typename T::erased_range_impl_marker;
-
-        template <typename T>
-        struct _has_erased_range_impl_marker
-            : custom_ranges::detail::exists<_erased_range_impl_marker, T> {
-        };
-
-        template <typename CharT>
-        expected<CharT> wrap_in_expected(expected<CharT> v)
-        {
-            return v;
-        }
-        inline expected<char> wrap_in_expected(char ch)
-        {
-            return {ch};
-        }
-        inline expected<wchar_t> wrap_in_expected(wchar_t ch)
-        {
-            return {ch};
-        }
-
         template <typename Range>
         struct erased_range_storage_by_value {
             Range m_range;
@@ -165,6 +142,14 @@ namespace scn {
             }
         };
 
+        template <typename T>
+        using _erased_range_impl_marker = typename T::erased_range_impl_marker;
+
+        template <typename T>
+        struct _has_erased_range_impl_marker
+            : custom_ranges::detail::exists<_erased_range_impl_marker, T> {
+        };
+
         template <typename StorageType, typename Range, typename CharT>
         class basic_erased_range_impl
             : public basic_erased_range_impl_base<CharT> {
@@ -184,7 +169,7 @@ namespace scn {
                       typename std::enable_if<!_has_erased_range_impl_marker<
                           remove_cvref_t<R>>::value>::type* = nullptr>
             basic_erased_range_impl(R&& r)
-                : m_range{SCN_FWD(r)}, m_current{ranges::begin(m_range.get())}
+                : m_range{SCN_FWD(r)}, m_next_to_read_from_source{ranges::begin(m_range.get())}
             {
             }
 
@@ -195,10 +180,10 @@ namespace scn {
             basic_erased_range_impl(basic_erased_range_impl&& o)
                 : m_range{SCN_MOVE(o.m_range)},
                   m_buffer{SCN_MOVE(o.m_buffer)},
-                  m_current{ranges::begin(m_range.get())},
-                  m_read{o.m_read}
+                  m_next_to_read_from_source{ranges::begin(m_range.get())},
+                  m_next_char_buffer_index{o.m_next_char_buffer_index}
             {
-                auto e = base::advance_current(o.m_read);
+                auto e = base::advance_current(o.m_next_char_buffer_index);
                 SCN_ENSURE(e);
             }
             basic_erased_range_impl& operator=(basic_erased_range_impl&&) =
@@ -208,106 +193,30 @@ namespace scn {
 
         private:
             template <typename R>
-            void _fill_buffer_impl(std::true_type)
-            {
-                auto s = get_buffer(m_range.get(), m_current);
-                if (s.size() > 0) {
-                    auto old_size = m_buffer.size();
-                    m_buffer.resize(m_buffer.size() + s.size());
-                    std::copy(s.begin(), s.end(), &m_buffer[old_size]);
-                    base::advance_current(s.ssize());
-                }
-            }
+            std::ptrdiff_t _fill_buffer_impl(std::true_type);
             template <typename R>
-            void _fill_buffer_impl(std::false_type)
-            {
-            }
-            void _fill_buffer()
-            {
-                return _fill_buffer_impl<range_type>(
-                    std::integral_constant<bool,
-                                           provides_buffer_access_impl<
-                                               range_nocvref_type>::value>{});
-            }
+            std::ptrdiff_t _fill_buffer_impl(std::false_type);
+
+            [[nodiscard]] std::ptrdiff_t _fill_buffer();
 
             // read until char index i
-            error _read_until_index(std::ptrdiff_t i)
-            {
-                _fill_buffer();
+            error _read_until_index(std::ptrdiff_t i);
 
-                // _get_index_in_buffer(i) - m_buffer.size()
-                //  -> (i - (m_read - m_buffer.size()) - m_buffer.size()
-                //  -> i - m_read + m_buffer.size() - m_buffer.size()
-                //  -> i - m_read
-                auto chars_to_read = i - m_read;
-                if (chars_to_read <= 0) {
-                    if (i >= static_cast<std::ptrdiff_t>(m_buffer.size())) {
-                        return {error::end_of_range, "EOF"};
-                    }
-                    return {};
-                }
-
-                m_buffer.reserve(m_buffer.size() +
-                                 static_cast<size_t>(chars_to_read));
-                for (; chars_to_read >= 0; --chars_to_read) {
-                    if (m_current == ranges::end(m_range.get())) {
-                        return {error::end_of_range, "EOF"};
-                    }
-                    ++m_current;
-                    auto ret = wrap_in_expected(*m_current);
-                    if (!ret) {
-                        return ret.error();
-                    }
-                    m_buffer.push_back(ret.value());
-                }
-                return {};
-            }
-
-            expected<char_type> do_get_at(std::ptrdiff_t i) override
-            {
-                if (i >= static_cast<std::ptrdiff_t>(m_buffer.size())) {
-                    auto e = _read_until_index(i);
-                    if (!e) {
-                        return e;
-                    }
-                }
-                if (m_read < i + 1 &&
-                    static_cast<std::ptrdiff_t>(m_buffer.size()) >= i + 1) {
-                    m_read = i + 1;
-                }
-                return m_buffer[static_cast<size_t>(i)];
-            }
+            expected<char_type> do_get_at(std::ptrdiff_t i) override;
 
             span<const char_type> do_avail_starting_at(
-                std::ptrdiff_t i) const override
-            {
-                if (i >= static_cast<std::ptrdiff_t>(m_buffer.size())) {
-                    return {};
-                }
-                return {m_buffer.data() + i, m_buffer.data() + m_buffer.size()};
-            }
+                std::ptrdiff_t i) const override;
 
-            std::ptrdiff_t do_current_index() const override
-            {
-                return m_read;
-            }
-            bool do_is_current_at_end() const override
-            {
-                return m_current == ranges::end(m_range.get()) &&
-                       m_read == static_cast<std::ptrdiff_t>(m_buffer.size());
-            }
+            std::ptrdiff_t do_current_index() const override;
+            bool do_is_current_at_end() const override;
 
-            error do_advance_current(std::ptrdiff_t n) override
-            {
-                ranges::advance(m_current, n);
-                return {};
-            }
+            error do_advance_current(std::ptrdiff_t n) override;
 
         protected:
             range_storage_type m_range;
             std::basic_string<char_type> m_buffer{};
-            iterator m_current;
-            std::ptrdiff_t m_read{0};
+            iterator m_next_to_read_from_source;
+            std::ptrdiff_t m_next_char_buffer_index{0};
         };
 
         template <typename T>
@@ -355,137 +264,8 @@ namespace scn {
         using char_type = CharT;
         using value_type = expected<CharT>;
 
-        class iterator {
-            friend class basic_erased_range<CharT>;
+        class iterator;
 
-            struct arrow_access_proxy {
-                expected<CharT> val;
-
-                const expected<CharT>* operator->() const
-                {
-                    return &val;
-                }
-            };
-
-        public:
-            using value_type = expected<CharT>;
-            using reference = expected<CharT>&;
-            using pointer = expected<CharT>*;
-            using difference_type = std::ptrdiff_t;
-            using iterator_category = std::bidirectional_iterator_tag;
-            using range_type = basic_erased_range<CharT>;
-
-            SCN_CONSTEXPR14 iterator() noexcept = default;
-
-            expected<CharT> operator*() const
-            {
-                SCN_EXPECT(m_range);
-                return m_range->m_impl->get_at(m_index);
-            }
-            arrow_access_proxy operator->() const
-            {
-                SCN_EXPECT(m_range);
-                return {**this};
-            }
-
-            iterator& operator++()
-            {
-                SCN_EXPECT(m_range);
-                ++m_index;
-                m_range->m_impl->get_at(m_index);
-                return *this;
-            }
-            iterator operator++(int)
-            {
-                auto tmp = *this;
-                operator++();
-                return tmp;
-            }
-
-            iterator& operator--()
-            {
-                SCN_EXPECT(m_range);
-                SCN_EXPECT(m_index > 0);
-                --m_index;
-                return *this;
-            }
-            iterator operator--(int)
-            {
-                auto tmp = *this;
-                operator--();
-                return tmp;
-            }
-
-            bool operator==(const iterator& other) const
-            {
-                if (_is_sentinel() && other._is_sentinel()) {
-                    return true;
-                }
-                if (_is_sentinel() || other._is_sentinel()) {
-                    return false;
-                }
-                return m_index == other.m_index;
-            }
-            bool operator!=(const iterator& other) const
-            {
-                return !operator==(other);
-            }
-
-            bool operator<(const iterator& other) const
-            {
-                if (_is_sentinel() && other._is_sentinel()) {
-                    return false;
-                }
-                if (_is_sentinel()) {
-                    return false;
-                }
-                if (other._is_sentinel()) {
-                    return true;
-                }
-                return m_index < other.m_index;
-            }
-            bool operator>(const iterator& other) const
-            {
-                return other.operator<(*this);
-            }
-            bool operator<=(const iterator& other) const
-            {
-                return !operator>(other);
-            }
-            bool operator>=(const iterator& other) const
-            {
-                return !operator<(other);
-            }
-
-            basic_erased_range<CharT>* get_range() noexcept
-            {
-                return m_range;
-            }
-            const basic_erased_range<CharT>* get_range() const noexcept
-            {
-                return m_range;
-            }
-
-        private:
-            iterator(const basic_erased_range<CharT>& r,
-                     std::ptrdiff_t i) noexcept
-                : m_range(const_cast<basic_erased_range<CharT>*>(&r)),
-                  m_index(i)
-            {
-            }
-
-            bool _is_sentinel() const
-            {
-                if (!m_range) {
-                    return true;
-                }
-                return m_range->m_impl->is_current_at_end() &&
-                       m_index == m_range->m_impl->current_index();
-            }
-
-            mutable basic_erased_range<CharT>* m_range{nullptr};
-            mutable std::ptrdiff_t m_index{0};
-        };
         friend class iterator;
         using sentinel = iterator;
 
@@ -501,35 +281,13 @@ namespace scn {
         {
         }
 
-        basic_erased_range(iterator b, sentinel)
-        {
-            if (!b.m_range) {
-                return;
-            }
+        basic_erased_range(iterator, sentinel);
 
-            auto&& range = SCN_MOVE(*b.m_range);
-            m_impl = SCN_MOVE(range.m_impl);
-            m_begin_index = b.m_index;
-        }
+        iterator begin() const noexcept;
+        sentinel end() const noexcept;
 
-        iterator begin() const noexcept
-        {
-            return iterator{*this, m_begin_index};
-        }
-        sentinel end() const noexcept
-        {
-            return {};
-        }
-
-        span<const char_type> get_buffer(iterator b, std::size_t max_size) const
-        {
-            SCN_EXPECT(m_impl);
-            auto s = m_impl->avail_starting_at(b.m_index);
-            if (s.size() > max_size) {
-                return s.first(max_size);
-            }
-            return s;
-        }
+        span<const char_type> get_buffer(iterator b,
+                                         std::size_t max_size) const;
 
     private:
         detail::unique_ptr<detail::basic_erased_range_impl_base<char_type>>
@@ -567,12 +325,12 @@ namespace scn {
         using iterator = typename range_type::iterator;
         using sentinel = typename range_type::sentinel;
 
-        basic_erased_view() = default;
-        basic_erased_view(range_type& range)
+        basic_erased_view() noexcept = default;
+        basic_erased_view(range_type& range) noexcept
             : m_begin(range.begin()), m_end(range.end())
         {
         }
-        basic_erased_view(iterator begin, sentinel end)
+        basic_erased_view(iterator begin, sentinel end) noexcept
             : m_begin(SCN_MOVE(begin)), m_end(SCN_MOVE(end))
         {
         }
@@ -624,5 +382,7 @@ namespace scn {
 
     SCN_END_NAMESPACE
 }  // namespace scn
+
+#include "erased_range_impl.h"
 
 #endif

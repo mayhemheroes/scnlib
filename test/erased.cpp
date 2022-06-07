@@ -47,6 +47,35 @@ TEST_CASE("erased")
     CHECK(ret.error() == scn::error::end_of_range);
 }
 
+TEST_CASE("indirect")
+{
+    auto source = get_deque<char>("abc");
+    auto r = scn::erase_range(source);
+
+    auto it = r.begin();
+    auto ret = *it;
+    CHECK(ret);
+    CHECK(ret.value() == 'a');
+    ++it;
+    CHECK(it != r.end());
+
+    ret = *it;
+    CHECK(ret);
+    CHECK(ret.value() == 'b');
+    ++it;
+    CHECK(it != r.end());
+
+    ret = *it;
+    CHECK(ret);
+    CHECK(ret.value() == 'c');
+    ++it;
+    CHECK(it == r.end());
+
+    ret = *it;
+    CHECK(!ret);
+    CHECK(ret.error() == scn::error::end_of_range);
+}
+
 TEST_CASE("wrapped")
 {
     auto source = std::string{"123 foo"};
@@ -75,8 +104,6 @@ TEST_CASE("wrapped")
     CHECK(std::string{s.value().begin(), s.value().end()} == "foo");
 }
 
-static_assert(scn::custom_ranges::view<scn::string_view>::value, "");
-static_assert(!scn::custom_ranges::view<std::string>::value, "");
 static_assert(SCN_CHECK_CONCEPT(scn::ranges::view<scn::string_view>), "");
 static_assert(SCN_CHECK_CONCEPT(!scn::ranges::view<std::string>), "");
 

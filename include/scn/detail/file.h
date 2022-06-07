@@ -286,9 +286,9 @@ namespace scn {
 
         basic_file() = default;
 
-        basic_file(FILE* f,
-                   file_buffering buffering = file_buffering::detect,
-                   span<CharT> ext_buffer = span<CharT>{})
+        explicit basic_file(FILE* f,
+                            file_buffering buffering = file_buffering::detect,
+                            span<CharT> ext_buffer = span<CharT>{})
             : m_file(f), m_ext_buffer(ext_buffer), m_buffering(buffering)
         {
             _init();
@@ -302,10 +302,16 @@ namespace scn {
 
         ~basic_file() = default;
 
-        FILE* get_handle() const
+        FILE* handle() const
         {
             return m_file;
         }
+        void set_handle(FILE* h)
+        {
+            m_file = h;
+        }
+
+        void sync() {}
 
         constexpr bool valid() const noexcept
         {
@@ -316,7 +322,7 @@ namespace scn {
         {
             return {*this, 0};
         }
-        sentinel end() const
+        sentinel end() const noexcept
         {
             return {};
         }
@@ -481,7 +487,7 @@ namespace scn {
             SCN_EXPECT(is_open());
             this->sync();
             std::fclose(this->handle());
-            this->set_handle(nullptr, false);
+            this->set_handle(nullptr);
         }
 
         /// Is the file open

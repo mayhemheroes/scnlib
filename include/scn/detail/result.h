@@ -67,6 +67,13 @@ namespace scn {
         };
 
         template <typename Range>
+        struct is_nothrow_begin
+            : std::integral_constant<bool,
+                                     noexcept(ranges::begin(
+                                         SCN_DECLVAL(const Range&)))> {
+        };
+
+        template <typename Range>
         struct result_range_storage_for_view {
             static_assert(SCN_CHECK_CONCEPT(ranges::view<Range>), "");
 
@@ -81,8 +88,8 @@ namespace scn {
 
             result_range_storage_for_view(range_type r) : range(SCN_MOVE(r)) {}
 
-            iterator get_begin() const noexcept(
-                noexcept(ranges::begin(SCN_DECLVAL(const range_type&))))
+            iterator get_begin() const
+                noexcept(is_nothrow_begin<range_type>::value)
             {
                 return ranges::begin(range);
             }
@@ -123,6 +130,35 @@ namespace scn {
                 : range(SCN_MOVE(r)), begin(SCN_MOVE(b))
             {
             }
+
+            result_range_storage_general_base(
+                const result_range_storage_general_base&) = delete;
+            result_range_storage_general_base& operator=(
+                const result_range_storage_general_base&) = delete;
+
+            result_range_storage_general_base(
+                result_range_storage_general_base&& other)
+            {
+                const auto begin_diff =
+                    ranges::distance(ranges::begin(range), begin);
+                range = SCN_MOVE(other.range);
+                begin = ranges::begin(range);
+                ranges::advance(begin, begin_diff);
+            }
+            result_range_storage_general_base& operator=(
+                result_range_storage_general_base&& other)
+            {
+                if (this != &other) {
+                    const auto begin_diff =
+                        ranges::distance(ranges::begin(range), begin);
+                    range = SCN_MOVE(other.range);
+                    begin = ranges::begin(range);
+                    ranges::advance(begin, begin_diff);
+                }
+                return *this;
+            }
+
+            ~result_range_storage_general_base() = default;
 
             iterator get_begin() const noexcept(
                 noexcept(std::is_nothrow_copy_assignable<iterator>::value))
@@ -369,7 +405,10 @@ namespace scn {
 
             // non_reconstructed_scan_result with matching Storage and Base
             // (different OriginalRange)
-            template <typename OR>
+            template <
+                typename OR,
+                typename std::enable_if<
+                    !std::is_same<OriginalRange, OR>::value>::type* = nullptr>
             non_reconstructed_scan_result& operator=(
                 const non_reconstructed_scan_result<OR, Storage, Base>& other)
             {
@@ -533,14 +572,17 @@ namespace scn {
 
                 // Input = string-like view
                 // Result = string_view
-                template <typename Error, typename InputRange, typename CharT>
+                template <typename Error,
+                          typename InputRangeTag,
+                          typename InputRangeValue,
+                          typename CharT>
                 static auto impl(Error e,
-                                 range_tag<InputRange>,
-                                 const InputRange&,
+                                 range_tag<InputRangeTag>,
+                                 const InputRangeValue&,
                                  basic_string_view<CharT> result,
                                  priority_tag<2>)
                     -> non_reconstructed_scan_result<
-                        remove_cvref_t<InputRange>,
+                        remove_cvref_t<InputRangeTag>,
                         result_range_storage_for_view<basic_string_view<CharT>>,
                         Error>
                 {

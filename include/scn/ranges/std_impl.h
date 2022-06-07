@@ -59,6 +59,8 @@ namespace std::ranges {
     inline constexpr bool enable_view<::scn::basic_string_view<CharT>> = true;
     template <typename T>
     inline constexpr bool enable_view<::scn::span<T>> = true;
+    template <typename CharT>
+    inline constexpr bool enable_view<::scn::basic_erased_view<CharT>> = true;
 }  // namespace std
 
 #ifdef SCN_CHECK_CONCEPT

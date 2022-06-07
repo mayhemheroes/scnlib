@@ -38,8 +38,16 @@ namespace scn {
         using pointer = const CharT*;
 
         SCN_CONSTEXPR14 basic_string_view_wrapper(range_type r) noexcept
-            : m_range(SCN_MOVE(r)), m_begin(m_range.cend())
+            : m_range(SCN_MOVE(r)), m_begin(m_range.begin())
         {
+        }
+
+        basic_string_view_wrapper& operator=(range_type other)
+        {
+            m_range = other;
+            m_begin = m_range.begin();
+            m_read = 0;
+            return *this;
         }
 
         constexpr iterator begin() const noexcept
@@ -85,7 +93,7 @@ namespace scn {
         {
             return detail::to_address(m_begin);
         }
-        constexpr difference_type size()
+        constexpr difference_type size() const noexcept
         {
             return end() - m_begin;
         }
@@ -114,6 +122,11 @@ namespace scn {
             return {begin(), end()};
         }
 
+        ready_prepared_range<basic_string_view<CharT>> prepare() const noexcept
+        {
+            return {{data(), static_cast<std::size_t>(size())}};
+        }
+
         static constexpr bool is_direct = true;
         static constexpr bool is_contiguous = true;
         static constexpr bool provides_buffer_access = true;
@@ -140,6 +153,14 @@ namespace scn {
         basic_erased_view_wrapper(range_type r)
             : m_range(SCN_MOVE(r)), m_begin(m_range.begin())
         {
+        }
+
+        basic_erased_view_wrapper& operator=(range_type other)
+        {
+            m_range = other;
+            m_begin = m_range.begin();
+            m_read = 0;
+            return *this;
         }
 
         iterator begin() const noexcept
@@ -204,6 +225,11 @@ namespace scn {
         range_type reconstructed()
         {
             return {begin(), end()};
+        }
+
+        ready_prepared_range<basic_erased_view<CharT>> prepare() const noexcept
+        {
+            return {{begin(), end()}};
         }
 
         static constexpr bool is_direct = false;

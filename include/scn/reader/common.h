@@ -184,6 +184,7 @@ namespace scn {
                 return read_code_point_result<CharT>{sbuf.first(1),
                                                      make_code_point(sbuf[0])};
             }
+            // TODO: non-contiguous, but buffer accessing
             while (sbuf.ssize() < len) {
                 auto ret = read_code_unit(r, true);
                 if (!ret) {
@@ -314,8 +315,7 @@ namespace scn {
             r,
             make_span(reinterpret_cast<char_type*>(writebuf.data()),
                       writebuf.size() * sizeof(BufValueT) / sizeof(char_type)),
-            std::integral_constant<bool,
-                                   WrappedRange::provides_buffer_access>{});
+            std::integral_constant<bool, WrappedRange::is_contiguous>{});
         SCN_GCC_POP
     }
 
@@ -717,6 +717,7 @@ namespace scn {
                             break;
                         }
                         out = std::copy(cpspan.begin(), cpspan.end(), out);
+                        it += len;
                     }
 
                     if (!done && out_cmp(out)) {

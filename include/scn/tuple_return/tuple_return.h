@@ -58,7 +58,7 @@ namespace scn {
     {
         auto range = prepare(r);
         auto format = detail::to_format(f);
-        auto scanfn = [&range, &f](Args&... a) {
+        auto scanfn = [&range, &format](Args&... a) {
             auto args = make_args_for(range, format, a...);
             return vscan(range.get(), format, {args});
         };
@@ -85,9 +85,9 @@ namespace scn {
     SCN_NODISCARD auto scan_tuple_default(Range&& r)
         -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>
     {
-        auto range = prepared(r);
+        auto range = prepare(r);
         auto format = static_cast<int>(sizeof...(Args));
-        auto scanfn = [&range](Args&... a) {
+        auto scanfn = [&range, &format](Args&... a) {
             auto args = make_args_for(range, format, a...);
             return vscan_default(range.get(), format, {args});
         };
