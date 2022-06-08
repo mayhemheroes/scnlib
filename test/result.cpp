@@ -95,6 +95,7 @@ TEST_CASE("expected")
 TEST_CASE("reassign")
 {
     int i{};
-    auto ret = scn::scan(std::string{"123"}, "{}", i);
+    auto source = std::string{"123"};
+    auto ret = scn::scan(source, "{}", i);
     ret = scn::scan(ret.range(), "{}", i);
 }

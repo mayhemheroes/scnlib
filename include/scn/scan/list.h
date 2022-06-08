@@ -343,8 +343,8 @@ namespace scn {
     SCN_NODISCARD auto scan_list(Range&& r, Container& c)
         -> detail::result_type_for_t<wrapped_error, Range>
     {
-        auto prepared = prepare(r);
-        auto range = wrap(prepared.get());
+        auto prepared = prepare(SCN_FWD(r));
+        auto range = wrap(prepared);
 
         auto ctx = make_context(SCN_MOVE(range));
         using char_type = typename decltype(ctx)::char_type;
@@ -353,7 +353,7 @@ namespace scn {
                                           scan_list_options<char_type>{});
 
         return detail::wrap_result(wrapped_error{err},
-                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   detail::range_tag<Range>{},
                                    SCN_MOVE(ctx.range().reconstructed()));
     }
 #endif
@@ -390,15 +390,15 @@ namespace scn {
                                     scan_list_options<CharT> options)
         -> detail::result_type_for_t<wrapped_error, Range>
     {
-        auto prepared = prepare(r);
-        auto range = wrap(prepared.get());
+        auto prepared = prepare(SCN_FWD(r));
+        auto range = wrap(prepared);
 
         auto ctx = make_context(SCN_MOVE(range));
 
         auto err = detail::scan_list_impl(ctx, false, c, options);
 
         return detail::wrap_result(wrapped_error{err},
-                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   detail::range_tag<Range>{},
                                    SCN_MOVE(ctx.range().reconstructed()));
     }
 #endif
@@ -436,8 +436,8 @@ namespace scn {
                                            scan_list_options<CharT> options)
         -> detail::result_type_for_t<wrapped_error, Range>
     {
-        auto prepared = prepare(r);
-        auto range = wrap(prepared.get());
+        auto prepared = prepare(SCN_FWD(r));
+        auto range = wrap(prepared);
 
         using char_type = typename decltype(range)::char_type;
         auto locale = make_locale_ref<char_type>(loc);
@@ -446,7 +446,7 @@ namespace scn {
         auto err = detail::scan_list_impl(ctx, true, c, options);
 
         return detail::wrap_result(wrapped_error{err},
-                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   detail::range_tag<Range>{},
                                    SCN_MOVE(ctx.range().reconstructed()));
     }
 #endif

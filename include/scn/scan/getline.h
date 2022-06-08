@@ -138,8 +138,8 @@ namespace scn {
         -> detail::result_type_for_t<wrapped_error, Range>
     {
         // TODO: getline_impl using erased args, implemented in .cpp?
-        auto prepared = prepare(r);
-        auto range = wrap(prepared.get());
+        auto prepared = prepare(SCN_FWD(r));
+        auto range = wrap(prepared);
 
         auto err = detail::getline_impl(range, str, until);
         if (!err) {
@@ -150,7 +150,7 @@ namespace scn {
         }
 
         return detail::wrap_result(wrapped_error{err},
-                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   detail::range_tag<Range>{},
                                    range.reconstructed());
     }
 #endif

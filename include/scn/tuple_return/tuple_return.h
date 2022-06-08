@@ -56,18 +56,18 @@ namespace scn {
     SCN_NODISCARD auto scan_tuple(Range&& r, Format f)
         -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>
     {
-        auto range = prepare(r);
+        auto range = prepare(SCN_FWD(r));
         auto format = detail::to_format(f);
         auto scanfn = [&range, &format](Args&... a) {
             auto args = make_args_for(range, format, a...);
-            return vscan(range.get(), format, {args});
+            return vscan(range, format, {args});
         };
 
         std::tuple<Args...> values{Args{}...};
         auto ret = detail::apply(scanfn, values);
         return std::tuple_cat(
             std::make_tuple(detail::wrap_result(
-                wrapped_error{ret.err}, detail::range_tag<Range>{}, SCN_FWD(r),
+                wrapped_error{ret.err}, detail::range_tag<Range>{},
                 SCN_MOVE(ret.range))),
             SCN_MOVE(values));
     }
@@ -85,18 +85,18 @@ namespace scn {
     SCN_NODISCARD auto scan_tuple_default(Range&& r)
         -> std::tuple<detail::result_type_for_t<wrapped_error, Range>, Args...>
     {
-        auto range = prepare(r);
+        auto range = prepare(SCN_FWD(r));
         auto format = static_cast<int>(sizeof...(Args));
         auto scanfn = [&range, &format](Args&... a) {
             auto args = make_args_for(range, format, a...);
-            return vscan_default(range.get(), format, {args});
+            return vscan_default(range, format, {args});
         };
 
         std::tuple<Args...> values{Args{}...};
         auto ret = detail::apply(scanfn, values);
         return std::tuple_cat(
             std::make_tuple(detail::wrap_result(
-                wrapped_error{ret.err}, detail::range_tag<Range>{}, SCN_FWD(r),
+                wrapped_error{ret.err}, detail::range_tag<Range>{},
                 SCN_MOVE(ret.range))),
             SCN_MOVE(values));
     }

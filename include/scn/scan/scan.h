@@ -39,23 +39,22 @@ namespace scn {
      * \code{.cpp}
      * template <typename Range, typename... Args>
      * auto scan(Range&& r, string_view f, Args&... a) {
-     *     auto&& range = scn::wrap(r);
+     *     auto range = scn::prepare(r);
      *     auto args = scn::make_args_for(range, f, a...);
-     *     auto ret = scn::vscan(std::move(range), f, {args});
+     *     auto ret = scn::vscan(range, f, {args});
      *     return scn::make_scan_result<Range>(std::move(ret));
      * }
      * \endcode
      */
     template <typename OriginalRange,
               typename Error = wrapped_error,
-              typename InputRange,
               typename ResultRange>
-    auto make_scan_result(InputRange&& input, vscan_result<ResultRange> result)
+    auto make_scan_result(vscan_result<ResultRange> result)
         -> detail::result_type_for_t<wrapped_error, OriginalRange>
     {
         return detail::wrap_result(Error{result.err},
                                    detail::range_tag<OriginalRange>{},
-                                   SCN_FWD(input), SCN_MOVE(result.range));
+                                   SCN_MOVE(result.range));
     }
 
     namespace detail {
@@ -67,12 +66,14 @@ namespace scn {
                           "Have to scan at least a single argument");
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
+            static_assert(SCN_CHECK_CONCEPT(ranges::borrowed_range<Range>),
+                          "Input needs to model borrowed_range");
 
-            auto range = prepare(r);
+            auto range = prepare(SCN_FWD(r));
             auto format = detail::to_format(f);
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan(range.get(), format, {args});
-            return make_scan_result<Range>(SCN_FWD(r), SCN_MOVE(ret));
+            auto ret = vscan(range, format, {args});
+            return make_scan_result<Range>(SCN_MOVE(ret));
         }
 
         template <typename Range, typename... Args>
@@ -83,12 +84,14 @@ namespace scn {
                           "Have to scan at least a single argument");
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
+            static_assert(SCN_CHECK_CONCEPT(ranges::borrowed_range<Range>),
+                          "Input needs to model borrowed_range");
 
-            auto range = prepare(r);
+            auto range = prepare(SCN_FWD(r));
             auto format = static_cast<int>(sizeof...(Args));
             auto args = make_args_for(range, format, a...);
-            auto ret = vscan_default(range.get(), format, {args});
-            return make_scan_result<Range>(SCN_FWD(r), SCN_MOVE(ret));
+            auto ret = vscan_default(range, format, {args});
+            return make_scan_result<Range>(SCN_MOVE(ret));
         }
 
         template <typename Locale,
@@ -105,8 +108,10 @@ namespace scn {
                           "Have to scan at least a single argument");
             static_assert(SCN_CHECK_CONCEPT(ranges::range<Range>),
                           "Input needs to be a Range");
+            static_assert(SCN_CHECK_CONCEPT(ranges::borrowed_range<Range>),
+                          "Input needs to model borrowed_range");
 
-            auto range = prepare(r);
+            auto range = prepare(SCN_FWD(r));
             auto format = detail::to_format(f);
             SCN_CLANG_PUSH_IGNORE_UNDEFINED_TEMPLATE
             auto locale =
@@ -114,9 +119,8 @@ namespace scn {
             SCN_CLANG_POP_IGNORE_UNDEFINED_TEMPLATE
 
             auto args = make_args_for(range, format, a...);
-            auto ret =
-                vscan_localized(range.get(), SCN_MOVE(locale), format, {args});
-            return make_scan_result<Range>(SCN_FWD(r), SCN_MOVE(ret));
+            auto ret = vscan_localized(range, SCN_MOVE(locale), format, {args});
+            return make_scan_result<Range>(SCN_MOVE(ret));
         }
 
     }  // namespace detail
@@ -249,16 +253,16 @@ namespace scn {
         -> detail::result_type_for_t<expected<T>, Range>
     {
         T value;
-        auto range = prepare(r);
+        auto range = prepare(SCN_FWD(r));
         auto args = make_args_for(range, 1, value);
-        auto ret = vscan_default(range.get(), 1, {args});
+        auto ret = vscan_default(range, 1, {args});
         if (ret.err) {
             return detail::wrap_result(expected<T>{value},
-                                       detail::range_tag<Range>{}, SCN_FWD(r),
+                                       detail::range_tag<Range>{},
                                        SCN_MOVE(ret.range));
         }
         return detail::wrap_result(expected<T>{ret.err},
-                                   detail::range_tag<Range>{}, SCN_FWD(r),
+                                   detail::range_tag<Range>{},
                                    SCN_MOVE(ret.range));
     }
 #endif
@@ -283,7 +287,7 @@ namespace scn {
         auto& range = stdin_range<CharT>();
         auto ret = detail::scan_boilerplate(range, f, a...);
         range.sync();
-        //ret.range().reset_begin_iterator();
+        // ret.range().reset_begin_iterator();
         return ret;
     }
 #endif

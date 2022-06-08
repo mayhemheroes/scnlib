@@ -73,8 +73,7 @@ namespace scn {
         struct incrementable_traits;
 
         namespace detail {
-            struct empty {
-            };
+            struct empty {};
 
             template <typename T>
             struct with_difference_type {
@@ -292,7 +291,7 @@ namespace scn {
             struct fn {
             private:
                 template <typename T, std::size_t N>
-                static SCN_CONSTEXPR14 void impl(T(&&)[N],
+                static SCN_CONSTEXPR14 void impl(T (&&)[N],
                                                  detail::priority_tag<3>) =
                     delete;
 
@@ -358,7 +357,7 @@ namespace scn {
             struct fn {
             private:
                 template <typename T, std::size_t N>
-                static constexpr void impl(T(&&)[N],
+                static constexpr void impl(T (&&)[N],
                                            detail::priority_tag<2>) = delete;
 
                 template <typename T, std::size_t N>
@@ -531,8 +530,7 @@ namespace scn {
                                     iter_reference_t<iterator_t<R>>>::type;
 
         // view
-        struct view_base {
-        };
+        struct view_base {};
 
         namespace detail {
             template <typename>
@@ -568,6 +566,25 @@ namespace scn {
         struct view : std::conditional<range<T>::value,
                                        detail::view_impl<T>,
                                        std::false_type>::type {
+        };
+
+        // borrowed_range
+
+        template <typename T>
+        struct enable_borrowed_range : std::false_type {};
+
+#if SCN_HAS_STRING_VIEW
+            template <typename CharT>
+            struct enable_borrowed_range<::std::basic_string_view<CharT>> : std::true_type {};
+        #endif
+
+        template <typename T>
+        struct borrowed_range
+            : std::integral_constant<
+                  bool,
+                  range<T>::value &&
+                      (std::is_lvalue_reference<T>::value ||
+                       enable_borrowed_range<detail::remove_cvref_t<T>>::value)> {
         };
 
         // data
@@ -661,7 +678,7 @@ namespace scn {
             private:
                 template <typename T, std::size_t N>
                 static constexpr std::size_t impl(
-                    const T(&&)[N],
+                    const T (&&)[N],
                     detail::priority_tag<3>) noexcept
                 {
                     return N;
@@ -1229,6 +1246,9 @@ namespace scn {
         {
             return detail::subrange_get_impl<N>::get(s);
         }
+
+        template <typename I, typename S, subrange_kind K>
+        struct enable_borrowed_range<subrange<I, S, K>> : std::false_type {};
 
         // reconstructible_range
         template <typename R>

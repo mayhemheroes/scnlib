@@ -52,15 +52,6 @@ inline std::basic_string<wchar_t> widen<wchar_t>(const std::string& str)
     return std::wstring(str.begin(), str.end());
 }
 
-template <typename CharT, typename Input, typename Fmt, typename... T>
-auto do_scan(Input&& i, Fmt f, T&... a)
-    -> decltype(scn::scan(widen<CharT>(SCN_FWD(i)),
-                          widen<CharT>(f).c_str(),
-                          a...))
-{
-    return scn::scan(widen<CharT>(SCN_FWD(i)), widen<CharT>(f).c_str(), a...);
-}
-
 template <typename CharT>
 std::deque<CharT> get_deque(
     const std::basic_string<CharT>& content = widen<CharT>("123"))
@@ -260,6 +251,18 @@ bool consistency_scanf(std::string& source, const std::string& fmt, T& val)
     source = source.substr(nchar);
     return nargs == 1;
 }
+
+#define DO_SCAN_PREPARE(CharT)                             \
+    using _do_scan_char_type = CharT;                      \
+    using _do_scan_string_type = std::basic_string<CharT>; \
+    _do_scan_string_type _do_scan_source, _do_scan_format
+
+#define DO_SCAN(Source, Format, ...)                                     \
+    [&]() {                                                              \
+        _do_scan_source = widen<_do_scan_char_type>(Source);             \
+        _do_scan_format = widen<_do_scan_char_type>(Format);             \
+        return scn::scan(_do_scan_source, _do_scan_format, __VA_ARGS__); \
+    }()
 
 #define DOCTEST_VALUE_PARAMETERIZED_DATA(data, data_array)                     \
     SCN_CLANG_PUSH SCN_CLANG_IGNORE("-Wexit-time-destructors")                 \

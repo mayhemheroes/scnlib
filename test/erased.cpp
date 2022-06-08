@@ -81,7 +81,7 @@ TEST_CASE("wrapped")
     auto source = std::string{"123 foo"};
     auto range = scn::erase_range(source);
     auto prepared = scn::prepare(source);
-    auto wrapped = scn::wrap(prepared.get());
+    auto wrapped = scn::wrap(prepared);
 
     std::string str{};
     auto it = std::back_inserter(str);

@@ -23,6 +23,7 @@
 namespace scn {
     SCN_BEGIN_NAMESPACE
 
+#if 0
     template <typename Range>
     struct ready_prepared_range {
         using target_type = Range;
@@ -45,17 +46,18 @@ namespace scn {
 
         TargetRange get();
     };
+#endif
 
     namespace _prepare {
         // erased_range& -> ready<erased_view>
         // erased_view -> ready<erased_view>
-        // string&& -> pending<string, string_view>
+        // REMOVED: string&& -> pending<string, string_view>
         // string-like -> ready<string_view>
-        // other -> pending<erased_range, erased_view>
+        // REMOVED: other -> pending<erased_range, erased_view>
         struct fn {
         private:
             template <typename CharT>
-            static ready_prepared_range<basic_erased_view<CharT>> impl(
+            static basic_erased_view<CharT> impl(
                 basic_erased_range<CharT>& range,
                 detail::priority_tag<
                     4>) noexcept(std::
@@ -66,7 +68,7 @@ namespace scn {
                 return {range};
             }
             template <typename CharT>
-            static ready_prepared_range<basic_erased_view<CharT>> impl(
+            static basic_erased_view<CharT> impl(
                 basic_erased_view<CharT> range,
                 detail::priority_tag<4>) noexcept
             {
@@ -74,15 +76,15 @@ namespace scn {
             }
 
             template <typename CharT, std::size_t N>
-            static ready_prepared_range<
-                basic_string_view<typename std::remove_cv<CharT>::type>>
-            impl(CharT (&s)[N], detail::priority_tag<3>) noexcept
+            static basic_string_view<typename std::remove_cv<CharT>::type> impl(
+                CharT (&s)[N],
+                detail::priority_tag<3>) noexcept
             {
-                return {{s, s + N - 1}};
+                return {s, s + N - 1};
             }
 
             template <typename CharT>
-            static ready_prepared_range<basic_string_view<CharT>> impl(
+            static basic_string_view<CharT> impl(
                 basic_string_view<CharT> s,
                 detail::priority_tag<2>) noexcept
             {
@@ -91,7 +93,7 @@ namespace scn {
 
 #if SCN_HAS_STRING_VIEW
             template <typename CharT>
-            static ready_prepared_range<basic_string_view<CharT>> impl(
+            static basic_string_view<CharT> impl(
                 std::basic_string_view<CharT> s,
                 detail::priority_tag<2>) noexcept
             {
@@ -100,22 +102,23 @@ namespace scn {
 #endif
 
             template <typename CharT>
-            static ready_prepared_range<
-                basic_string_view<typename std::remove_cv<CharT>::type>>
-            impl(span<CharT> s, detail::priority_tag<2>) noexcept
+            static basic_string_view<typename std::remove_cv<CharT>::type> impl(
+                span<CharT> s,
+                detail::priority_tag<2>) noexcept
             {
-                return {{s.data(), s.size()}};
+                return {s.data(), s.size()};
             }
 
             template <typename CharT, typename Allocator>
-            static ready_prepared_range<basic_string_view<CharT>> impl(
+            static basic_string_view<CharT> impl(
                 std::basic_string<CharT, std::char_traits<CharT>, Allocator>&
                     str,
                 detail::priority_tag<2>) noexcept
             {
-                return {{str.data(), str.size()}};
+                return {str.data(), str.size()};
             }
 
+#if 0
             template <typename CharT, typename Allocator>
             static pending_prepared_range<
                 std::basic_string<CharT, std::char_traits<CharT>, Allocator>,
@@ -129,6 +132,7 @@ namespace scn {
             {
                 return {SCN_MOVE(str)};
             }
+#endif
 
             template <typename T,
                       typename = decltype(SCN_DECLVAL(T&).prepare())>
@@ -148,6 +152,7 @@ namespace scn {
                 return SCN_MOVE(r).prepare();
             }
 
+#if 0
             template <typename T>
             static auto impl(T&& r, detail::priority_tag<0>) noexcept(
                 noexcept(erase_range(SCN_FWD(r))))
@@ -158,6 +163,14 @@ namespace scn {
             {
                 return {erase_range(SCN_FWD(r))};
             }
+#else
+            template <typename T>
+            static auto impl(T&& r, detail::priority_tag<0>) noexcept -> T
+            {
+                static_assert(detail::dependent_false<T>::value,
+                              "prepare given an invalid range");
+            }
+#endif
 
         public:
             template <typename T>
@@ -175,11 +188,13 @@ namespace scn {
             detail::static_const<_prepare::fn>::value;
     }
 
+#if 0
     template <typename StoredRange, typename TargetRange>
     inline TargetRange pending_prepared_range<StoredRange, TargetRange>::get()
     {
         return prepare(range).get();
     }
+#endif
 
     SCN_END_NAMESPACE
 }  // namespace scn

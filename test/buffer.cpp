@@ -33,10 +33,12 @@ TEST_CASE("buffer")
 TEST_CASE("non-contiguous")
 {
     auto source = get_deque<char>("123");
+    auto erased = scn::erase_range(source);
+
     std::string dest(3, '\0');
     auto span = scn::make_span(dest);
 
-    auto ret = scn::scan(source, "{}", span);
+    auto ret = scn::scan(erased, "{}", span);
     CHECK(ret);
     CHECK(dest == "123");
 }

@@ -26,7 +26,7 @@ TEST_CASE("string_view range_wrapper")
 {
     auto source = scn::string_view{"123 456"};
     auto prepared = scn::prepare(source);
-    auto wrapped = scn::wrap(prepared.get());
+    auto wrapped = scn::wrap(prepared);
     auto range = scn::wrap(wrapped);
 
     static_assert(
@@ -37,7 +37,7 @@ TEST_CASE("erased_range")
 {
     auto source = scn::erase_range("123");
     auto prepared = scn::prepare(source);
-    auto range = scn::wrap(prepared.get());
+    auto range = scn::wrap(prepared);
 
     static_assert(
         std::is_same<decltype(range), scn::erased_view_wrapper>::value, "");
@@ -48,7 +48,7 @@ TEST_CASE("mapped_file")
 {
     auto file = scn::mapped_file{};
     auto prepared = scn::prepare(file);
-    auto range = scn::wrap(prepared.get());
+    auto range = scn::wrap(prepared);
 
     static_assert(
         std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
@@ -58,7 +58,7 @@ TEST_CASE("string_view")
 {
     auto source = scn::string_view{"123"};
     auto prepared = scn::prepare(source);
-    auto range = scn::wrap(prepared.get());
+    auto range = scn::wrap(prepared);
 
     static_assert(
         std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
@@ -68,7 +68,7 @@ TEST_CASE("span")
 {
     auto source = scn::span<char>{};
     auto prepared = scn::prepare(source);
-    auto range = scn::wrap(prepared.get());
+    auto range = scn::wrap(prepared);
 
     static_assert(
         std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
@@ -78,7 +78,7 @@ TEST_CASE("string")
 {
     auto source = std::string{};
     auto prepared = scn::prepare(source);
-    auto range = scn::wrap(prepared.get());
+    auto range = scn::wrap(prepared);
 
     static_assert(
         std::is_same<decltype(range), scn::string_view_wrapper>::value, "");
@@ -87,8 +87,8 @@ TEST_CASE("string")
 TEST_CASE("file")
 {
     auto source = scn::file{};
-    auto prepared = scn::prepare(source);
-    auto range = scn::wrap(prepared.get());
+    auto erased = scn::erase_range(source);
+    auto range = scn::wrap(scn::prepare(erased));
 
     static_assert(
         std::is_same<decltype(range), scn::erased_view_wrapper>::value, "");

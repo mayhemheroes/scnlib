@@ -23,39 +23,54 @@ TEST_CASE_TEMPLATE("string test", CharT, char, wchar_t)
     using string_type = std::basic_string<CharT>;
     {
         string_type s{}, s2{};
-        auto e = do_scan<CharT>("thisisaword nextword", "{} {}", s, s2);
+        auto source = widen<CharT>("thisisaword nextword");
+        auto f = widen<CharT>("{} {}");
+
+        auto e = scn::scan(source, f, s, s2);
         CHECK(s == widen<CharT>("thisisaword"));
         CHECK(s2 == widen<CharT>("nextword"));
         CHECK(e);
     }
     {
         string_type s{};
-        auto e = do_scan<CharT>("WoRdW1th_Special<>Charact3rs!?", "{}", s);
-        CHECK(s == widen<CharT>("WoRdW1th_Special<>Charact3rs!?"));
+        auto source = widen<CharT>("WoRdW1th_Special<>Charact3rs!?");
+        auto f = widen<CharT>("{}");
+
+        auto e = scn::scan(source, f, s);
+        CHECK(s == source);
         CHECK(e);
     }
     {
         string_type s{};
-        auto e = do_scan<CharT>("foo", "{:s}", s);
-        CHECK(s == widen<CharT>("foo"));
+        auto source = widen<CharT>("foo");
+        auto f = widen<CharT>("{:s}");
+
+        auto e = scn::scan(source, f, s);
+        CHECK(s == source);
         CHECK(e);
     }
     {
         string_type s{};
-        auto e = do_scan<CharT>("foo", "{:a}", s);
+        auto source = widen<CharT>("foo");
+        auto f = widen<CharT>("{:a}");
+
+        auto e = scn::scan(source, f, s);
         CHECK(s.empty());
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_format_string);
     }
     {
         string_type s{};
+        auto source = widen<CharT>(" space");
+        auto f = widen<CharT>("{}");
 
-        auto e = do_scan<CharT>(" space", "{}", s);
+        auto e = scn::scan(source, f, s);
         CHECK(e);
         CHECK(s == widen<CharT>("space"));
         s.clear();
 
-        e = do_scan<CharT>(" space", " {}", s);
+        f = widen<CharT>(" {}");
+        e = scn::scan(source, f, s);
         CHECK(e);
         CHECK(s == widen<CharT>("space"));
     }
@@ -100,8 +115,10 @@ TEST_CASE_TEMPLATE("getline", CharT, char, wchar_t)
     {
         string_type s{};
         auto source = get_deque<CharT>(data);
+        auto range = scn::erase_range(source);
+
         auto ret =
-            scn::getline(source, s, scn::detail::ascii_widen<CharT>('\n'));
+            scn::getline(range, s, scn::detail::ascii_widen<CharT>('\n'));
         CHECK(ret);
         CHECK(s == widen<CharT>("firstline"));
 

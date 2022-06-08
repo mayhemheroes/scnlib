@@ -70,7 +70,10 @@ TEST_CASE("align")
     }
     SUBCASE("center, non-contiguous")
     {
-        auto e = scn::scan(get_deque<char>("   a   b"), "{:^}", a);
+        auto source = get_deque<char>("   a   b");
+        auto sourceRange = scn::erase_range(source);
+
+        auto e = scn::scan(sourceRange, "{:^}", a);
         CHECK(e);
         CHECK(e.range().begin()->value() == 'b');
         CHECK(a.ch == 'a');

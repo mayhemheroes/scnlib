@@ -290,15 +290,19 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
 
     constexpr bool u = std::is_unsigned<value_type>::value;
 
+    auto default_format = widen<char_type>("{}");
+
     {
         value_type i{1};
-        auto e = do_scan<char_type>("0", "{}", i);
+        auto source = widen<char_type>("0");
+        auto e = scn::scan(source, default_format, i);
         CHECK(i == 0);
         CHECK(e);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>("1", "{}", i);
+        auto source = widen<char_type>("1");
+        auto e = scn::scan(source, default_format, i);
         CHECK(i == 1);
         CHECK(e);
     }
@@ -306,13 +310,15 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
     {
         if (!u) {
             value_type i{};
-            auto e = do_scan<char_type>("-1", "{}", i);
+            auto source = widen<char_type>("-1");
+            auto e = scn::scan(source, default_format, i);
             CHECK(i == -1);
             CHECK(e);
         }
         else {
             value_type i{};
-            auto e = do_scan<char_type>("-1", "{}", i);
+            auto source = widen<char_type>("-1");
+            auto e = scn::scan(source, default_format, i);
             REQUIRE(!e);
             CHECK(e.error() == scn::error::invalid_scanned_value);
         }
@@ -327,13 +333,15 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
         }();
         if (can_fit_2pow31) {
             value_type i{};
-            auto e = do_scan<char_type>("2147483648", "{}", i);
+            auto source = widen<char_type>("2147483648");
+            auto e = scn::scan(source, default_format, i);
             CHECK(i == 2147483648);
             CHECK(e);
         }
         else {
             value_type i{};
-            auto e = do_scan<char_type>("2147483648", "{}", i);
+            auto source = widen<char_type>("2147483648");
+            auto e = scn::scan(source, default_format, i);
             CHECK(!e);
             CHECK(e.error() == scn::error::value_out_of_range);
         }
@@ -341,19 +349,25 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
 
     {
         value_type i{};
-        auto e = do_scan<char_type>("1011", "{:B2}", i);
+        auto source = widen<char_type>("1011");
+        auto f = widen<char_type>("{:B2}");
+        auto e = scn::scan(source, f, i);
         CHECK(i == 11);
         CHECK(e);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>("10", "{:o}", i);
+        auto source = widen<char_type>("10");
+        auto f = widen<char_type>("{:o}");
+        auto e = scn::scan(source, f, i);
         CHECK(i == 010);
         CHECK(e);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>("010", "{:i}", i);
+        auto source = widen<char_type>("010");
+        auto f = widen<char_type>("{:i}");
+        auto e = scn::scan(source, f, i);
         CHECK(i == 010);
         CHECK(e);
     }
@@ -362,13 +376,17 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
     {
         if (can_fit_badidea) {
             value_type i{};
-            auto e = do_scan<char_type>("bad1dea", "{:x}", i);
+            auto source = widen<char_type>("bad1dea");
+            auto f = widen<char_type>("{:x}");
+            auto e = scn::scan(source, f, i);
             CHECK(i == 0xbad1dea);
             CHECK(e);
         }
         else {
             value_type i{};
-            auto e = do_scan<char_type>("bad1dea", "{:x}", i);
+            auto source = widen<char_type>("bad1dea");
+            auto f = widen<char_type>("{:x}");
+            auto e = scn::scan(source, f, i);
             REQUIRE(!e);
             CHECK(e.error() == scn::error::value_out_of_range);
         }
@@ -376,13 +394,17 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
     {
         if (can_fit_badidea) {
             value_type i{};
-            auto e = do_scan<char_type>("0xbad1dea", "{:i}", i);
+            auto source = widen<char_type>("0xbad1dea");
+            auto f = widen<char_type>("{:i}");
+            auto e = scn::scan(source, f, i);
             CHECK(i == 0xbad1dea);
             CHECK(e);
         }
         else {
             value_type i{};
-            auto e = do_scan<char_type>("0xbad1dea", "{:i}", i);
+            auto source = widen<char_type>("0xbad1dea");
+            auto f = widen<char_type>("{:i}");
+            auto e = scn::scan(source, f, i);
             REQUIRE(!e);
             CHECK(e.error() == scn::error::value_out_of_range);
         }
@@ -390,13 +412,17 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
     {
         if (can_fit_badidea) {
             value_type i{};
-            auto e = do_scan<char_type>("0xBAD1DEA", "{:i}", i);
+            auto source = widen<char_type>("0xBAD1DEA");
+            auto f = widen<char_type>("{:i}");
+            auto e = scn::scan(source, f, i);
             CHECK(i == 0xbad1dea);
             CHECK(e);
         }
         else {
             value_type i{};
-            auto e = do_scan<char_type>("0xBAD1DEA", "{:i}", i);
+            auto source = widen<char_type>("0xBAD1DEA");
+            auto f = widen<char_type>("{:i}");
+            auto e = scn::scan(source, f, i);
             CHECK(!e);
             CHECK(e.error() == scn::error::value_out_of_range);
         }
@@ -404,47 +430,49 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
 
     {
         value_type i{};
-        auto e = do_scan<char_type>("2f", "{:B16}", i);
+        auto source = widen<char_type>("2f");
+        auto f = widen<char_type>("{:B16}");
+        auto e = scn::scan(source, f, i);
         CHECK(i == 0x2f);
         CHECK(e);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>("2F", "{:B16}", i);
+        auto source = widen<char_type>("2F");
+        auto f = widen<char_type>("{:B16}");
+        auto e = scn::scan(source, f, i);
         CHECK(i == 0x2f);
         CHECK(e);
     }
     {
         value_type i{0};
-        auto e = do_scan<char_type>("0x2f", "{:B16}", i);
+        auto source = widen<char_type>("0x2f");
+        auto f = widen<char_type>("{:B16}");
+        auto e = scn::scan(source, f, i);
         CHECK(e);
         CHECK(i == 0);
     }
     {
         value_type i{0};
-        auto e = do_scan<char_type>("0x2F", "{:B16}", i);
+        auto source = widen<char_type>("0x2F");
+        auto f = widen<char_type>("{:B16}");
+        auto e = scn::scan(source, f, i);
         CHECK(e);
         CHECK(i == 0);
     }
 
     {
         value_type i{};
-        auto e = do_scan<char_type>("text", "{}", i);
+        auto source = widen<char_type>("text");
+        auto e = scn::scan(source, default_format, i);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_scanned_value);
     }
 
     {
         value_type i{};
-        auto e = do_scan<char_type>("-", "{}", i);
-        CHECK(!e);
-        CHECK(e.error() == scn::error::invalid_scanned_value);
-        CHECK(i == 0);
-    }
-
-    {
-        value_type i{};
-        auto e = do_scan<char_type>("+", "{}", i);
+        auto source = widen<char_type>("-");
+        auto e = scn::scan(source, default_format, i);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_scanned_value);
         CHECK(i == 0);
@@ -452,21 +480,36 @@ TEST_CASE_TEMPLATE_DEFINE("integer", T, integer_test)
 
     {
         value_type i{};
-        auto e = do_scan<char_type>("123", "{:B}", i);
+        auto source = widen<char_type>("+");
+        auto e = scn::scan(source, default_format, i);
+        CHECK(!e);
+        CHECK(e.error() == scn::error::invalid_scanned_value);
+        CHECK(i == 0);
+    }
+
+    {
+        value_type i{};
+        auto source = widen<char_type>("123");
+        auto f = widen<char_type>("{:B}");
+        auto e = scn::scan(source, f, i);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_format_string);
         CHECK(i == 0);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>("123", "{:Ba}", i);
+        auto source = widen<char_type>("123");
+        auto f = widen<char_type>("{:Ba}");
+        auto e = scn::scan(source, f, i);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_format_string);
         CHECK(i == 0);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>("123", "{:B0}", i);
+        auto source = widen<char_type>("123");
+        auto f = widen<char_type>("{:B0}");
+        auto e = scn::scan(source, f, i);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_format_string);
         CHECK(i == 0);
@@ -713,44 +756,42 @@ TEST_CASE_TEMPLATE_DEFINE("integer range", T, integer_range_test)
     using value_type = typename T::value_type;
     using char_type = typename T::char_type;
 
+    DO_SCAN_PREPARE(char_type);
+
     {
         value_type i{};
-        auto e =
-            do_scan<char_type>(std::to_string(maxval<value_type>()), "{}", i);
+        auto e = DO_SCAN(std::to_string(maxval<value_type>()), "{}", i);
         CHECK(e);
         CHECK(i == maxval<value_type>());
     }
     {
         value_type i{};
-        auto e =
-            do_scan<char_type>(std::to_string(minval<value_type>()), "{}", i);
+        auto e = DO_SCAN(std::to_string(minval<value_type>()), "{}", i);
         CHECK(e);
         CHECK(i == minval<value_type>());
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>(std::to_string(maxval<value_type>() - 1),
-                                    "{}", i);
+        auto e = DO_SCAN(std::to_string(maxval<value_type>() - 1), "{}", i);
         CHECK(e);
         CHECK(i == maxval<value_type>() - 1);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>(std::to_string(minval<value_type>() + 1),
-                                    "{}", i);
+        auto e = DO_SCAN(std::to_string(minval<value_type>() + 1), "{}", i);
         CHECK(e);
         CHECK(i == minval<value_type>() + 1);
     }
     {
         value_type i{};
-        auto e = do_scan<char_type>(overstr<value_type>(), "{}", i);
+        auto e = DO_SCAN(overstr<value_type>(), "{}", i);
         CHECK(!e);
         CHECK(e.error() == scn::error::value_out_of_range);
     }
     {
         if (std::is_signed<value_type>::value) {
             value_type i{};
-            auto e = do_scan<char_type>(understr<value_type>(), "{}", i);
+            auto e = DO_SCAN(understr<value_type>(), "{}", i);
             CHECK(!e);
             CHECK(e.error() == scn::error::value_out_of_range);
         }
@@ -951,8 +992,9 @@ TEST_CASE("consistency")
 TEST_CASE("deque + L")
 {
     auto source = get_deque<char>("123");
+    auto erased = scn::erase_range(source);
     int i{};
-    auto ret = scn::scan(source, "{:L}", i);
+    auto ret = scn::scan(erased, "{:L}", i);
     CHECK(ret);
     CHECK(i == 123);
     CHECK(ret.range().empty());
@@ -964,7 +1006,8 @@ TEST_CASE("deque + L")
     CHECK(i == 0);
 }
 
-TEST_CASE("signed char, -3") {
+TEST_CASE("signed char, -3")
+{
     signed char sch{};
     auto ret = scn::scan("-3", "{}", sch);
     CHECK(ret);
@@ -972,7 +1015,8 @@ TEST_CASE("signed char, -3") {
     CHECK(ret.range().empty());
 }
 
-TEST_CASE("int as c") {
+TEST_CASE("int as c")
+{
     int i{};
     auto ret = scn::scan("1", "{:c}", i);
     CHECK(ret);

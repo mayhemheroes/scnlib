@@ -103,6 +103,7 @@ namespace scn {
 
             virtual error do_advance_current(std::ptrdiff_t) = 0;
         };
+
         template <typename Range>
         struct erased_range_storage_by_value {
             Range m_range;
@@ -169,7 +170,8 @@ namespace scn {
                       typename std::enable_if<!_has_erased_range_impl_marker<
                           remove_cvref_t<R>>::value>::type* = nullptr>
             basic_erased_range_impl(R&& r)
-                : m_range{SCN_FWD(r)}, m_next_to_read_from_source{ranges::begin(m_range.get())}
+                : m_range{SCN_FWD(r)},
+                  m_next_to_read_from_source{ranges::begin(m_range.get())}
             {
             }
 
@@ -302,6 +304,8 @@ namespace scn {
     basic_erased_range<typename detail::extract_char_type<Iterator>::type>
     erase_range(Range&& r)
     {
+        static_assert(SCN_CHECK_CONCEPT(ranges::borrowed_range<Range>),
+                      "Can only use erase_range with a borrowed_range");
         return {SCN_FWD(r)};
     }
 
@@ -382,6 +386,25 @@ namespace scn {
 
     SCN_END_NAMESPACE
 }  // namespace scn
+
+#if SCN_USE_STD_RANGES
+template <typename CharT>
+inline constexpr bool ::std::ranges::enable_borrowed_range<
+    ::scn::basic_erased_view<CharT>> = true;
+#else
+namespace scn {
+    SCN_BEGIN_NAMESPACE
+
+    namespace custom_ranges {
+        template <typename CharT>
+        struct enable_borrowed_range<::scn::basic_erased_view<CharT>>
+            : std::true_type {
+        };
+    }  // namespace custom_ranges
+
+    SCN_END_NAMESPACE
+}  // namespace scn
+#endif
 
 #include "erased_range_impl.h"
 

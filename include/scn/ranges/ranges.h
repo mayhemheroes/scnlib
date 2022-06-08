@@ -38,6 +38,8 @@
 #define SCN_RANGES_NAMESPACE ::scn::custom_ranges
 #endif
 
+#include "../util/span.h"
+
 namespace scn {
     SCN_BEGIN_NAMESPACE
 
@@ -45,5 +47,32 @@ namespace scn {
 
     SCN_END_NAMESPACE
 }  // namespace scn
+
+#if SCN_USE_STD_RANGES
+template <typename T>
+inline constexpr bool ::std::ranges::enable_borrowed_range<::scn::span<T>> =
+    true;
+
+template <typename CharT>
+inline constexpr bool ::std::ranges::enable_borrowed_range<
+    ::scn::basic_string_view<CharT>> = true;
+#else
+namespace scn {
+    SCN_BEGIN_NAMESPACE
+
+    namespace custom_ranges {
+        template <typename T>
+        struct enable_borrowed_range<scn::span<T>> : std::true_type {
+        };
+
+        template <typename CharT>
+        struct enable_borrowed_range<::scn::basic_string_view<CharT>>
+            : std::true_type {
+        };
+    }  // namespace ranges
+
+    SCN_END_NAMESPACE
+}  // namespace scn
+#endif
 
 #endif  // SCN_RANGES_RANGES_H

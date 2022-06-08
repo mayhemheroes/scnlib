@@ -122,9 +122,9 @@ namespace scn {
             return {begin(), end()};
         }
 
-        ready_prepared_range<basic_string_view<CharT>> prepare() const noexcept
+        basic_string_view<CharT> prepare() const noexcept
         {
-            return {{data(), static_cast<std::size_t>(size())}};
+            return {data(), static_cast<std::size_t>(size())};
         }
 
         static constexpr bool is_direct = true;
@@ -227,9 +227,9 @@ namespace scn {
             return {begin(), end()};
         }
 
-        ready_prepared_range<basic_erased_view<CharT>> prepare() const noexcept
+        basic_erased_view<CharT> prepare() const noexcept
         {
-            return {{begin(), end()}};
+            return {begin(), end()};
         }
 
         static constexpr bool is_direct = false;

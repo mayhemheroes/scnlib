@@ -66,8 +66,9 @@ TEST_CASE("read_code_point")
     SUBCASE("non-contiguous")
     {
         auto source = get_deque<char>("aä€🙂");
-        auto prepared = scn::prepare(source);
-        auto range = scn::wrap(prepared.get());
+        auto erased = scn::erase_range(source);
+        auto prepared = scn::prepare(erased);
+        auto range = scn::wrap(prepared);
 
         auto ret = scn::read_code_point(range, bufspan);
         CHECK(ret);

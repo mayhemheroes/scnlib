@@ -20,93 +20,114 @@
 
 TEST_CASE_TEMPLATE("boolean", CharT, char, wchar_t)
 {
+    auto default_format = widen<CharT>("{}");
+    auto s_format = widen<CharT>("{:s}");
+    auto i_format = widen<CharT>("{:i}");
+    auto L_format = widen<CharT>("{:L}");
+    auto n_format = widen<CharT>("{:n}");
+
     {
+        auto source = widen<CharT>("true");
         bool b{};
-        auto e = do_scan<CharT>("true", "{}", b);
+        auto e = scn::scan(source, default_format, b);
         CHECK(b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("false");
         bool b{};
-        auto e = do_scan<CharT>("false", "{}", b);
+        auto e = scn::scan(source, default_format, b);
         CHECK(!b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("true");
         bool b{};
-        auto e = do_scan<CharT>("true", "{:s}", b);
+        auto e = scn::scan(source, s_format, b);
         CHECK(b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("false");
         bool b{};
-        auto e = do_scan<CharT>("false", "{:s}", b);
+        auto e = scn::scan(source, s_format, b);
         CHECK(!b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("bool");
         bool b{};
-        auto e = do_scan<CharT>("bool", "{:s}", b);
+        auto e = scn::scan(source, s_format, b);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_scanned_value);
     }
     {
+        auto source = widen<CharT>("0");
         bool b{};
-        auto e = do_scan<CharT>("0", "{:s}", b);
+        auto e = scn::scan(source, s_format, b);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_scanned_value);
     }
     {
+        auto source = widen<CharT>("0");
         bool b{};
-        auto e = do_scan<CharT>("0", "{}", b);
+        auto e = scn::scan(source, default_format, b);
         CHECK(!b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("1");
         bool b{};
-        auto e = do_scan<CharT>("1", "{}", b);
+        auto e = scn::scan(source, default_format, b);
         CHECK(b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("0");
         bool b{};
-        auto e = do_scan<CharT>("0", "{:i}", b);
+        auto e = scn::scan(source, i_format, b);
         CHECK(!b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("1");
         bool b{};
-        auto e = do_scan<CharT>("1", "{:i}", b);
+        auto e = scn::scan(source, i_format, b);
         CHECK(b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("0");
         bool b{};
-        auto e = do_scan<CharT>("0", "{:L}", b);
+        auto e = scn::scan(source, L_format, b);
         CHECK(!b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("1");
         bool b{};
-        auto e = do_scan<CharT>("1", "{:L}", b);
+        auto e = scn::scan(source, L_format, b);
         CHECK(b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("2");
         bool b{};
-        auto e = do_scan<CharT>("2", "{}", b);
+        auto e = scn::scan(source, default_format, b);
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_scanned_value);
     }
     {
+        auto source = widen<CharT>("true");
         bool b{};
-        auto e = do_scan<CharT>("true", "{:n}", b);
+        auto e = scn::scan(source, n_format, b);
         CHECK(b);
         CHECK(e);
     }
     {
+        auto source = widen<CharT>("0");
         bool b{};
-        auto e = do_scan<CharT>("0", "{:n}", b);
+        auto e = scn::scan(source, n_format, b);
         CHECK(!b);
         CHECK(e);
     }

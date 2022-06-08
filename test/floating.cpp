@@ -36,87 +36,101 @@ TEST_CASE_TEMPLATE_DEFINE("floating point", T, floating_test)
     using value_type = typename T::value_type;
     using char_type = typename T::char_type;
 
+    auto default_format = widen<char_type>("{}");
+
     {
         value_type f{1.0};
-        auto e = do_scan<char_type>("0", "{}", f);
+        auto source = widen<char_type>("0");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == 0.0);
         CHECK(e);
     }
     {
         value_type f{1.0};
-        auto e = do_scan<char_type>("0.0", "{}", f);
+        auto source = widen<char_type>("0.0");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == 0.0);
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("42", "{}", f);
+        auto source = widen<char_type>("42");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(42));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("3.14", "{}", f);
+        auto source = widen<char_type>("3.14");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(3.14));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("-2.22", "{}", f);
+        auto source = widen<char_type>("-2.22");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(-2.22));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("2.0e4", "{}", f);
+        auto source = widen<char_type>("2.0e4");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(2.0e4));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("0x1.bc70a3d70a3d7p+6", "{}", f);
+        auto source = widen<char_type>("0x1.bc70a3d70a3d7p+6");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(111.11));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("inf", "{}", f);
+        auto source = widen<char_type>("inf");
+        auto e = scn::scan(source, default_format, f);
         CHECK(std::isinf(f));
         CHECK(!std::signbit(f));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("-inf", "{}", f);
+        auto source = widen<char_type>("-inf");
+        auto e = scn::scan(source, default_format, f);
         CHECK(std::isinf(f));
         CHECK(std::signbit(f));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("nan", "{}", f);
+        auto source = widen<char_type>("nan");
+        auto e = scn::scan(source, default_format, f);
         CHECK(std::isnan(f));
         CHECK(!std::signbit(f));
         CHECK(e);
     }
     {
         value_type f{};
-        auto e = do_scan<char_type>("-0", "{}", f);
+        auto source = widen<char_type>("-0");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == 0.0);
         CHECK(std::signbit(f));
         CHECK(e);
     }
     {
         value_type f{1.0};
-        auto e =
-            do_scan<char_type>("999999999999999.9999999999999e999999", "{}", f);
+        auto source = widen<char_type>("999999999999999.9999999999999e999999");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(1.0));
         CHECK(!e);
         CHECK(e.error() == scn::error::value_out_of_range);
     }
     {
         value_type f{1.0};
-        auto e = do_scan<char_type>("str", "{}", f);
+        auto source = widen<char_type>("str");
+        auto e = scn::scan(source, default_format, f);
         CHECK(f == doctest::Approx(1.0));
         CHECK(!e);
         CHECK(e.error() == scn::error::invalid_scanned_value);
@@ -256,9 +270,10 @@ SCN_CLANG_POP
 TEST_CASE_TEMPLATE("non-contiguous", CharT, char, wchar_t)
 {
     auto src = get_deque<CharT>(widen<CharT>("3.14"));
+    auto source = scn::erase_range(src);
     double f{0.0};
     auto format = widen<CharT>("{}");
-    auto ret = scn::scan(src, format, f);
+    auto ret = scn::scan(source, format, f);
     CHECK(ret);
     CHECK(f == doctest::Approx(3.14));
 }
@@ -266,7 +281,7 @@ TEST_CASE_TEMPLATE("non-contiguous", CharT, char, wchar_t)
 TEST_CASE("float error")
 {
     double d{};
-    auto ret = do_scan<char>("str", "{}", d);
+    auto ret = scn::scan("str", "{}", d);
     CHECK(!ret);
     CHECK(ret.error() == scn::error::invalid_scanned_value);
     CHECK(d == doctest::Approx(0.0));

@@ -156,6 +156,7 @@ namespace scn {
             return {data(), size()};
         }
 
+#if 0
         ready_prepared_range<basic_string_view<CharT>> prepare() const& noexcept
         {
             return {{data(), size()}};
@@ -165,6 +166,12 @@ namespace scn {
         {
             return {SCN_MOVE(*this)};
         }
+#else
+        basic_string_view<CharT> prepare() const& noexcept
+        {
+            return {data(), size()};
+        }
+#endif
     };
 
     using mapped_file = basic_mapped_file<char>;
@@ -327,12 +334,14 @@ namespace scn {
             return {};
         }
 
+#if 0
         pending_prepared_range<basic_erased_range<CharT>,
                                basic_erased_view<CharT>>
         prepare()
         {
             return {erase_range(*this)};
         }
+#endif
 
     private:
         error _read_single();

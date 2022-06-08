@@ -61,23 +61,23 @@ TEST_CASE("char format string")
 {
     char ch{};
 
-    auto ret = do_scan<char>("a", "{}", ch);
+    auto ret = scn::scan("a", "{}", ch);
     CHECK(ret);
     CHECK(ch == 'a');
 
-    ret = do_scan<char>("a", "{:c}", ch);
+    ret = scn::scan("a", "{:c}", ch);
     CHECK(ret);
     CHECK(ch == 'a');
 
-    ret = do_scan<char>("1", "{:i}", ch);
+    ret = scn::scan("1", "{:i}", ch);
     CHECK(ret);
     CHECK(ch == 1);
 
-    ret = do_scan<char>("a", "{:", ch);
+    ret = scn::scan("a", "{:", ch);
     CHECK(!ret);
     CHECK(ret.error() == scn::error::invalid_format_string);
 
-    ret = do_scan<char>("a", "{:a}", ch);
+    ret = scn::scan("a", "{:a}", ch);
     CHECK(!ret);
     CHECK(ret.error() == scn::error::invalid_format_string);
 }
