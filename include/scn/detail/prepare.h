@@ -152,26 +152,6 @@ namespace scn {
                 return SCN_MOVE(r).prepare();
             }
 
-#if 0
-            template <typename T>
-            static auto impl(T&& r, detail::priority_tag<0>) noexcept(
-                noexcept(erase_range(SCN_FWD(r))))
-                -> pending_prepared_range<
-                    decltype(erase_range(SCN_FWD(r))),
-                    basic_erased_view<
-                        typename decltype(erase_range(SCN_FWD(r)))::char_type>>
-            {
-                return {erase_range(SCN_FWD(r))};
-            }
-#else
-            template <typename T>
-            static auto impl(T&& r, detail::priority_tag<0>) noexcept -> T
-            {
-                static_assert(detail::dependent_false<T>::value,
-                              "prepare given an invalid range");
-            }
-#endif
-
         public:
             template <typename T>
             auto operator()(T&& r) const

@@ -613,58 +613,42 @@ namespace scn {
 
                 // Input = erased_range&
                 // Result = erased_view
-                template <typename Error, typename CharT>
+                template <typename Error,
+                          typename ErasedRange,
+                          typename CharT,
+                          typename std::enable_if<std::is_base_of<
+                              basic_erased_range<CharT>,
+                              ErasedRange>::value>::type* = nullptr>
                 static auto impl(Error e,
-                                 range_tag<basic_erased_range<CharT>&>,
+                                 range_tag<ErasedRange&>,
                                  basic_erased_view<CharT> result,
                                  priority_tag<1>) noexcept
                     -> non_reconstructed_scan_result<
-                        basic_erased_range<CharT>,
+                        ErasedRange,
                         result_range_storage_for_view<basic_erased_view<CharT>>,
                         Error>
                 {
                     return {SCN_MOVE(e), {result}};
                 }
 
-#if 0
-                // Input = Range
-                // Result = erased_view
-                template <typename Error,
-                          typename InputRangeTag,
-                          typename InputRangeValue,
-                          typename CharT,
-                          typename std::enable_if<std::is_same<
-                              remove_cvref_t<InputRangeTag>,
-                              remove_cvref_t<InputRangeValue>>::value>::type* =
-                              nullptr>
-                static auto impl(Error e,
-                                 range_tag<InputRangeTag>,
-                                 const InputRangeValue&,
-                                 basic_erased_view<CharT> result,
-                                 priority_tag<0>)
-                    -> non_reconstructed_scan_result<
-                        remove_cvref_t<InputRangeTag>,
-                        result_range_storage_for_erased<CharT>,
-                        Error>
-                {
-                    return {SCN_MOVE(e), {SCN_MOVE(result).get(), 0}};
-                }
-#else
+                struct invalid_result_type {};
+
                 template <typename Error,
                           typename InputRangeTag,
                           typename ResultRange>
                 static auto impl(Error e,
                                  range_tag<InputRangeTag>,
                                  ResultRange&&,
-                                 priority_tag<0>) noexcept -> void
+                                 priority_tag<0>) noexcept
+                    -> invalid_result_type
                 {
                     static_assert(SCN_CHECK_CONCEPT(
                                       ranges::borrowed_range<InputRangeTag>),
                                   "InputRange must satisfy borrowed_range");
                     static_assert(dependent_false<Error>::value,
                                   "Invalid overload of wrap_result");
+                    return {};
                 }
-#endif
 
             public:
                 template <typename Error,

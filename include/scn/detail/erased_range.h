@@ -291,6 +291,24 @@ namespace scn {
         span<const char_type> get_buffer(iterator b,
                                          std::size_t max_size) const;
 
+    protected:
+        using impl_ptr_type =
+            detail::unique_ptr<detail::basic_erased_range_impl_base<char_type>>;
+
+        basic_erased_range(impl_ptr_type impl, std::ptrdiff_t b)
+            : m_impl{SCN_MOVE(impl)}, m_begin_index{b}
+        {
+        }
+
+        impl_ptr_type& _get_impl()
+        {
+            return m_impl;
+        }
+        const impl_ptr_type& _get_impl() const
+        {
+            return m_impl;
+        }
+
     private:
         detail::unique_ptr<detail::basic_erased_range_impl_base<char_type>>
             m_impl{nullptr};

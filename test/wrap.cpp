@@ -87,8 +87,7 @@ TEST_CASE("string")
 TEST_CASE("file")
 {
     auto source = scn::file{};
-    auto erased = scn::erase_range(source);
-    auto range = scn::wrap(scn::prepare(erased));
+    auto range = scn::wrap(scn::prepare(source));
 
     static_assert(
         std::is_same<decltype(range), scn::erased_view_wrapper>::value, "");

@@ -162,7 +162,327 @@ namespace scn {
 
     }  // namespace detail
 
-    static error _file_read_single(FILE* f, char& ch)
+    namespace detail {
+        template <typename CharT>
+        class basic_erased_range_impl_for_file_impl
+            : public basic_erased_range_impl_for_file<CharT> {
+        public:
+            basic_erased_range_impl_for_file_impl(FILE* h,
+                                                  file_buffering buffering)
+                : m_file{h}, m_buffering{buffering}
+            {
+                _init();
+            }
+
+            void sync() override {}
+
+            FILE* get_file_handle() const
+            {
+                return m_file;
+            }
+
+        private:
+            expected<CharT> do_get_at(std::ptrdiff_t i) override
+            {
+                if (_should_read_more(i)) {
+                    // no chars have been read
+                    m_last_error = _get_more();
+                    if (!m_last_error) {
+                        return m_last_error;
+                    }
+                }
+                return _get_char_at(i);
+            }
+
+            span<const CharT> do_avail_starting_at(
+                std::ptrdiff_t) const override
+            {
+                return {};
+            }
+
+            std::ptrdiff_t do_current_index() const override
+            {
+                return m_last_read_index + m_chars_in_past_buffers;
+            }
+            bool do_is_current_at_end() const override
+            {
+                return _is_at_end(do_current_index());
+            }
+
+            error do_advance_current(std::ptrdiff_t i) override
+            {
+                return do_get_at(do_current_index() + i).error();
+            }
+
+            error _read_single();
+            error _read_line();
+            error _read_chars(std::size_t n);
+
+            error _get_more();
+
+            void _init();
+
+            void _reclaim_buffer()
+            {
+                m_chars_in_past_buffers += m_last_read_index;
+                m_last_read_index = 0;
+            }
+
+            span<CharT> _get_buffer()
+            {
+                return {&m_buffer[0], m_buffer.size()};
+            }
+            span<const CharT> _get_buffer() const
+            {
+                return {m_buffer.data(), m_buffer.size()};
+            }
+
+            span<CharT> _get_buffer_for_reading()
+            {
+                return _get_buffer().subspan(m_last_read_index);
+            }
+            span<const CharT> _get_buffer_for_reading() const
+            {
+                return _get_buffer().subspan(m_last_read_index);
+            }
+
+            CharT _get_char_at(std::size_t index) const
+            {
+                return _get_buffer()[index - m_chars_in_past_buffers];
+            }
+            bool _should_read_more(std::size_t index) const
+            {
+                return m_last_read_index < index - m_chars_in_past_buffers &&
+                       !m_eof_reached;
+            }
+            bool _is_at_end(std::size_t index) const
+            {
+                return m_last_read_index == index - m_chars_in_past_buffers &&
+                       m_eof_reached;
+            }
+
+            std::basic_string<CharT> m_buffer{};
+            FILE* m_file;
+            error m_last_error{};
+            std::size_t m_chars_in_past_buffers{0};
+            std::size_t m_last_read_index{0};
+            file_buffering m_buffering;
+            bool m_eof_reached{false};
+        };
+
+        static error _file_read_single(FILE* f, char& ch)
+        {
+            SCN_EXPECT(f != nullptr);
+            int tmp = std::fgetc(f);
+            if (tmp == EOF) {
+                if (std::feof(f) != 0) {
+                    return {error::end_of_range, "EOF"};
+                }
+                if (std::ferror(f) != 0) {
+                    return {error::source_error, "fgetc error"};
+                }
+                return {error::unrecoverable_source_error,
+                        "Unknown fgetc error"};
+            }
+            ch = static_cast<char>(tmp);
+            return {};
+        }
+        static error _file_read_single(FILE* f, wchar_t& ch)
+        {
+            SCN_EXPECT(f != nullptr);
+            wint_t tmp = std::fgetwc(f);
+            if (tmp == WEOF) {
+                if (std::feof(f) != 0) {
+                    return {error::end_of_range, "EOF"};
+                }
+                if (std::ferror(f) != 0) {
+                    return {error::source_error, "fgetc error"};
+                }
+                return {error::unrecoverable_source_error,
+                        "Unknown fgetc error"};
+            }
+            ch = static_cast<wchar_t>(tmp);
+            return {};
+        }
+
+        template <typename CharT>
+        static std::pair<std::size_t, error> _file_read_multiple(
+            FILE* f,
+            span<CharT> buf)
+        {
+            SCN_EXPECT(f);
+            SCN_EXPECT(!buf.empty());
+
+            auto ret = std::fread(buf.data(), sizeof(CharT), buf.size(), f);
+            if (ret < buf.size()) {
+                if (std::feof(f) != 0) {
+                    return {ret, {error::end_of_range, "EOF"}};
+                }
+                if (std::ferror(f) != 0) {
+                    return {ret, error{error::source_error, "fread error"}};
+                }
+                return {ret, error{error::unrecoverable_source_error,
+                                   "Unknown fread error"}};
+            }
+            return {ret, {}};
+        }
+
+        template <typename CharT>
+        SCN_FUNC error
+        basic_erased_range_impl_for_file_impl<CharT>::_read_single()
+        {
+            SCN_EXPECT(!_get_buffer_for_reading().empty());
+            CharT ch;
+            auto e = _file_read_single(m_file, ch);
+            if (!e) {
+                return e;
+            }
+            _get_buffer_for_reading().front() = ch;
+            ++m_last_read_index;
+            return {};
+        }
+
+        template <typename CharT>
+        SCN_FUNC error
+        basic_erased_range_impl_for_file_impl<CharT>::_read_line()
+        {
+            SCN_EXPECT(!_get_buffer_for_reading().empty());
+
+            while (!_get_buffer_for_reading().empty()) {
+                char ch{};
+                auto e = _file_read_single(m_file, ch);
+                if (!e) {
+                    return e;
+                }
+                _get_buffer_for_reading().front() = ch;
+                ++m_last_read_index;
+                if (ch == detail::ascii_widen<CharT>('\n')) {
+                    break;
+                }
+            }
+            return {};
+        }
+
+        template <typename CharT>
+        error basic_erased_range_impl_for_file_impl<CharT>::_read_chars(
+            std::size_t n)
+        {
+            SCN_EXPECT(_get_buffer_for_reading().size() >= n);
+
+            auto ret =
+                _file_read_multiple(m_file, _get_buffer_for_reading().first(n));
+            m_last_read_index += ret.first;
+            return ret.second;
+        }
+
+        template <typename CharT>
+        error basic_erased_range_impl_for_file_impl<CharT>::_get_more()
+        {
+            SCN_EXPECT(!m_eof_reached);
+
+            if (_get_buffer_for_reading().empty()) {
+                _reclaim_buffer();
+            }
+
+            error err{};
+            if (m_buffering == file_buffering::full) {
+                err = _read_chars(_get_buffer_for_reading().size());
+            }
+            else if (m_buffering == file_buffering::line) {
+                err = _read_line();
+            }
+            else if (m_buffering == file_buffering::none) {
+                err = _read_single();
+            }
+
+            if (!err) {
+                if (err.code() == error::end_of_range) {
+                    m_eof_reached = true;
+                }
+                else {
+                    m_last_error = err;
+                }
+            }
+            return err;
+        }
+
+        template <typename CharT>
+        SCN_FUNC void basic_erased_range_impl_for_file_impl<CharT>::_init()
+        {
+#if SCN_POSIX
+            const auto fd = ::fileno(m_file);
+
+            struct ::stat s {};
+            auto ret = ::fstat(fd, &s);
+            bool is_socket = false;
+            std::size_t blksize = BUFSIZ;
+
+            if (ret == 0) {
+                is_socket = S_ISSOCK(s.st_mode);
+                blksize = static_cast<std::size_t>(s.st_blksize);
+            }
+
+            if (m_buffering == file_buffering::detect) {
+                const bool is_tty = ::isatty(fd) == 1;
+                if (is_tty || is_socket) {
+                    m_buffering = file_buffering::none;
+                }
+                else {
+                    m_buffering = file_buffering::full;
+                }
+            }
+
+            m_buffer.resize(blksize / sizeof(CharT));
+#elif SCN_WINDOWS
+            const auto fd = ::_fileno(m_file);
+
+            if (m_buffering == file_buffering::detect) {
+                const auto is_tty = ::_isatty(fd) != 0;
+                if (is_tty) {
+                    m_buffering = file_buffering::none;
+                }
+                else {
+                    m_buffering = file_buffering::full;
+                }
+            }
+
+            m_buffer.resize(BUFSIZ / sizeof(CharT));
+#else
+            if (m_buffering == file_buffering::detect) {
+                m_buffering = file_buffering::none;
+            }
+
+            m_buffer.resize(BUFSIZ / sizeof(CharT));
+#endif
+        }
+    }  // namespace detail
+
+    template <typename CharT>
+    basic_file<CharT>::basic_file(FILE* handle, file_buffering buffering)
+        : basic_erased_range<CharT>{
+              detail::make_unique<
+                  detail::basic_erased_range_impl_for_file_impl<CharT>>(
+                  handle,
+                  buffering),
+              0}
+    {
+    }
+
+#if SCN_INCLUDE_SOURCE_DEFINITIONS
+    namespace detail {
+        template class basic_erased_range_impl_for_file<char>;
+        template class basic_erased_range_impl_for_file<wchar_t>;
+
+        template class basic_erased_range_impl_for_file_impl<char>;
+        template class basic_erased_range_impl_for_file_impl<wchar_t>;
+    }  // namespace detail
+
+    template class basic_file<char>;
+    template class basic_file<wchar_t>;
+#endif
+
+#if 0
+        static error _file_read_single(FILE* f, char& ch)
     {
         SCN_EXPECT(f != nullptr);
         int tmp = std::fgetc(f);
@@ -466,6 +786,8 @@ namespace scn {
 #if SCN_INCLUDE_SOURCE_DEFINITIONS
     template class basic_file<char>;
     template class basic_file<wchar_t>;
+#endif
+
 #endif
 
 #if 0

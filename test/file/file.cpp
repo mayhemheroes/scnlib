@@ -29,10 +29,23 @@ static bool do_fgets(wchar_t* str, size_t count, std::FILE* f)
     return std::fgetws(str, static_cast<int>(count), f) != nullptr;
 }
 
+struct cfile_wrapper {
+    cfile_wrapper(const char* file, const char* flags)
+        : f{std::fopen(file, flags)}
+    {
+    }
+    ~cfile_wrapper()
+    {
+        std::fclose(f);
+    }
+
+    FILE* f;
+};
+
 TEST_CASE_TEMPLATE("file", CharT, char, wchar_t)
 {
-    scn::basic_owning_file<CharT> file{"./test/file/testfile.txt", "r"};
-    REQUIRE(file.is_open());
+    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+    scn::basic_file<CharT> file{cfile.f};
 
     using string_type = std::basic_string<CharT>;
 
@@ -222,17 +235,20 @@ namespace scn {
         template <typename Context>
         error scan(two_strings& val, Context& ctx)
         {
+            return scn::scan_usertype(ctx, "{} {}", val.first, val.second);
+#if 0
             auto r = scn::scan(ctx.range(), "{} {}", val.first, val.second);
             ctx.range() = std::move(r.range());
             return r.error();
+#endif
         }
     };
 }  // namespace scn
 
 TEST_CASE("file usertype")
 {
-    scn::owning_file file{"./test/file/testfile.txt", "r"};
-    REQUIRE(file.is_open());
+    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+    scn::file file{cfile.f};
 
     SUBCASE("int_and_string")
     {

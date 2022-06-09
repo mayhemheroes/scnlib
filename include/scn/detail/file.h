@@ -22,6 +22,7 @@
 #include <string>
 
 #include "../util/algorithm.h"
+#include "erased_range.h"
 #include "range.h"
 
 namespace scn {
@@ -177,7 +178,518 @@ namespace scn {
     using mapped_file = basic_mapped_file<char>;
     using mapped_wfile = basic_mapped_file<wchar_t>;
 
+    enum class file_buffering {
+        // Read BUFSIZ (etc) into buffer
+        full,
+        // Read char-by-char until line break
+        line,
+        // Read char-by-char
+        none,
+
+        // Detect from given file:
+        // if tty -> none
+        // else -> full
+        detect
+    };
+
     namespace detail {
+        template <typename CharT>
+        class basic_erased_range_impl_for_file
+            : public basic_erased_range_impl_base<CharT> {
+        public:
+            basic_erased_range_impl_for_file() = default;
+
+            virtual void sync() = 0;
+
+            virtual FILE* get_file_handle() const = 0;
+        };
+    }  // namespace detail
+
+    template <typename CharT>
+    class basic_file : public basic_erased_range<CharT> {
+    public:
+        basic_file() = default;
+        basic_file(FILE* handle,
+                   file_buffering buffering = file_buffering::detect);
+
+        void sync()
+        {
+            SCN_EXPECT(_get_impl_ptr());
+            _get_impl_ptr()->sync();
+        }
+
+        FILE* handle() const
+        {
+            auto p = _get_impl_ptr();
+            if (!p) {
+                return nullptr;
+            }
+            return p->get_file_handle();
+        }
+
+    private:
+        using file_impl_type = detail::basic_erased_range_impl_for_file<CharT>;
+
+        file_impl_type* _get_impl_ptr()
+        {
+            return static_cast<file_impl_type*>(
+                basic_erased_range<CharT>::_get_impl().get());
+        }
+        const file_impl_type* _get_impl_ptr() const
+        {
+            return static_cast<const file_impl_type*>(
+                basic_erased_range<CharT>::_get_impl().get());
+        }
+    };
+
+    using file = basic_file<char>;
+    using wfile = basic_file<wchar_t>;
+
+    extern template file::basic_file(FILE*, file_buffering);
+    extern template wfile::basic_file(FILE*, file_buffering);
+
+    SCN_CLANG_PUSH
+    SCN_CLANG_IGNORE("-Wexit-time-destructors")
+
+    // Avoid documentation issues: without this, Doxygen will think
+    // SCN_CLANG_PUSH is a part of the stdin_range declaration
+    namespace dummy {
+    }
+
+    /**
+     * Get a reference to the global stdin range
+     */
+    template <typename CharT>
+    basic_file<CharT>& stdin_range()
+    {
+        static auto f = basic_file<CharT>{stdin};
+        return f;
+    }
+    /**
+     * Get a reference to the global `char`-oriented stdin range
+     */
+    inline file& cstdin()
+    {
+        return stdin_range<char>();
+    }
+    /**
+     * Get a reference to the global `wchar_t`-oriented stdin range
+     */
+    inline wfile& wcstdin()
+    {
+        return stdin_range<wchar_t>();
+    }
+    SCN_CLANG_POP
+
+#if 0
+
+namespace detail {
+            template <typename CharT>
+            struct basic_file_access;
+            template <typename CharT>
+            struct basic_file_iterator_access;
+        }  // namespace detail
+
+        /**
+         * Range mapping to a C FILE*.
+         * Not copyable or reconstructible.
+         */
+        template <typename CharT>
+        class basic_file {
+            friend struct detail::basic_file_access<CharT>;
+            friend struct detail::basic_file_iterator_access<CharT>;
+
+        public:
+            class iterator {
+                friend struct detail::basic_file_iterator_access<CharT>;
+
+            public:
+                using char_type = CharT;
+                using value_type = expected<CharT>;
+                using reference = value_type;
+                using pointer = value_type*;
+                using difference_type = std::ptrdiff_t;
+                using iterator_category = std::bidirectional_iterator_tag;
+                using file_type = basic_file<CharT>;
+
+                iterator() = default;
+
+                expected<CharT> operator*() const;
+
+                iterator& operator++()
+                {
+                    SCN_EXPECT(m_file);
+                    ++m_current;
+                    return *this;
+                }
+                iterator operator++(int)
+                {
+                    iterator tmp(*this);
+                    operator++();
+                    return tmp;
+                }
+
+                iterator& operator--()
+                {
+                    SCN_EXPECT(m_file);
+                    SCN_EXPECT(m_current > 0);
+
+                    m_last_error = error{};
+                    --m_current;
+
+                    return *this;
+                }
+                iterator operator--(int)
+                {
+                    iterator tmp(*this);
+                    operator--();
+                    return tmp;
+                }
+
+                bool operator==(const iterator& o) const;
+
+                bool operator!=(const iterator& o) const
+                {
+                    return !operator==(o);
+                }
+
+                bool operator<(const iterator& o) const
+                {
+                    // any valid iterator is before eof and null
+                    if (!m_file) {
+                        return !o.m_file;
+                    }
+                    if (!o.m_file) {
+                        return !m_file;
+                    }
+                    SCN_EXPECT(m_file == o.m_file);
+                    return m_current < o.m_current;
+                }
+                bool operator>(const iterator& o) const
+                {
+                    return o.operator<(*this);
+                }
+                bool operator<=(const iterator& o) const
+                {
+                    return !operator>(o);
+                }
+                bool operator>=(const iterator& o) const
+                {
+                    return !operator<(o);
+                }
+
+                void reset_begin_iterator() const noexcept
+                {
+                    m_current = 0;
+                }
+
+            private:
+                friend class basic_file;
+
+                iterator(const file_type& f, size_t i)
+                    : m_file{std::addressof(f)}, m_current{i}
+                {
+                }
+
+                mutable error m_last_error{};
+                const file_type* m_file{nullptr};
+                mutable size_t m_current{0};
+            };
+
+            using sentinel = iterator;
+            using char_type = CharT;
+
+            /**
+             * Construct an empty file.
+             * Reading not possible: valid() is `false`
+             */
+            basic_file() = default;
+            /**
+             * Construct from a FILE*.
+             * Must be a valid handle that can be read from.
+             */
+            basic_file(FILE* f) : m_file{f} {}
+
+            basic_file(const basic_file&) = delete;
+            basic_file& operator=(const basic_file&) = delete;
+
+            basic_file(basic_file&& o) noexcept
+                : m_buffer(detail::exchange(o.m_buffer, {})),
+                  m_file(detail::exchange(o.m_file, nullptr))
+            {
+            }
+            basic_file& operator=(basic_file&& o) noexcept
+            {
+                if (valid()) {
+                    sync();
+                }
+                m_buffer = detail::exchange(o.m_buffer, {});
+                m_file = detail::exchange(o.m_file, nullptr);
+                return *this;
+            }
+
+            ~basic_file()
+            {
+                if (valid()) {
+                    _sync_all();
+                }
+            }
+
+            /**
+             * Get the FILE* for this range.
+             * Only use this handle for reading sync() has been called and no
+             * reading operations have taken place after that.
+             *
+             * \see sync
+             */
+            FILE* handle() const
+            {
+                return m_file;
+            }
+
+            /**
+             * Reset the file handle.
+             * Calls sync(), if necessary, before resetting.
+             * @return The old handle
+             */
+            FILE* set_handle(FILE* f, bool allow_sync = true) noexcept
+            {
+                auto old = m_file;
+                if (old && allow_sync) {
+                    sync();
+                }
+                m_file = f;
+                return old;
+            }
+
+            /// Whether the file has been opened
+            constexpr bool valid() const noexcept
+            {
+                return m_file != nullptr;
+            }
+
+            /**
+             * Synchronizes this file with the underlying FILE*.
+             * Invalidates all non-end iterators.
+             * File must be open.
+             *
+             * Necessary for mixing-and-matching scnlib and <cstdio>:
+             * \code{.cpp}
+             * scn::scan(file, ...);
+             * file.sync();
+             * std::fscanf(file.handle(), ...);
+             * \endcode
+             *
+             * Necessary for synchronizing result objects:
+             * \code{.cpp}
+             * auto result = scn::scan(file, ...);
+             * // only result.range() can now be used for scanning
+             * result = scn::scan(result.range(), ...);
+             * // .sync() allows the original file to also be used
+             * file.sync();
+             * result = scn::scan(file, ...);
+             * \endcode
+             */
+            void sync() noexcept
+            {
+                _sync_all();
+                m_buffer.clear();
+            }
+
+            iterator begin() const noexcept
+            {
+                return {*this, 0};
+            }
+            sentinel end() const noexcept
+            {
+                return {};
+            }
+
+            span<const CharT> get_buffer(iterator it,
+                                         size_t max_size) const noexcept
+            {
+                if (!it.m_file) {
+                    return {};
+                }
+                const auto begin =
+                    m_buffer.begin() + static_cast<std::ptrdiff_t>(it.m_current);
+                const auto end_diff = detail::min(
+                    max_size,
+                    static_cast<size_t>(ranges::distance(begin, m_buffer.end())));
+                return {begin, begin + static_cast<std::ptrdiff_t>(end_diff)};
+            }
+
+            detail::range_wrapper<basic_file<CharT>&> wrap() &
+            {
+                return {*this};
+            }
+            detail::range_wrapper<basic_file<CharT>> wrap() &&
+            {
+                return {SCN_MOVE(*this)};
+            }
+
+        private:
+            friend class iterator;
+
+            expected<CharT> _read_single() const;
+
+            void _sync_all() noexcept
+            {
+                _sync_until(m_buffer.size());
+            }
+            void _sync_until(size_t pos) noexcept;
+
+            CharT _get_char_at(size_t i) const
+            {
+                SCN_EXPECT(valid());
+                SCN_EXPECT(i < m_buffer.size());
+                return m_buffer[i];
+            }
+
+            bool _is_at_end(size_t i) const
+            {
+                SCN_EXPECT(valid());
+                return i >= m_buffer.size();
+            }
+
+            mutable std::basic_string<CharT> m_buffer{};
+            FILE* m_file{nullptr};
+        };
+
+        using file = basic_file<char>;
+        using wfile = basic_file<wchar_t>;
+
+        template <>
+        expected<char> file::iterator::operator*() const;
+        template <>
+        expected<wchar_t> wfile::iterator::operator*() const;
+        template <>
+        bool file::iterator::operator==(const file::iterator&) const;
+        template <>
+        bool wfile::iterator::operator==(const wfile::iterator&) const;
+
+        template <>
+        expected<char> file::_read_single() const;
+        template <>
+        expected<wchar_t> wfile::_read_single() const;
+        template <>
+        void file::_sync_until(size_t) noexcept;
+        template <>
+        void wfile::_sync_until(size_t) noexcept;
+
+        /**
+         * A child class for basic_file, handling fopen, fclose, and lifetimes with
+         * RAII.
+         */
+        template <typename CharT>
+        class basic_owning_file : public basic_file<CharT> {
+        public:
+            using char_type = CharT;
+
+            /// Open an empty file
+            basic_owning_file() = default;
+            /// Open a file, with fopen arguments
+            basic_owning_file(const char* f, const char* mode)
+                : basic_file<CharT>(std::fopen(f, mode))
+            {
+            }
+
+            /// Steal ownership of a FILE*
+            explicit basic_owning_file(FILE* f) : basic_file<CharT>(f) {}
+
+            ~basic_owning_file()
+            {
+                if (is_open()) {
+                    close();
+                }
+            }
+
+            /// fopen
+            bool open(const char* f, const char* mode)
+            {
+                SCN_EXPECT(!is_open());
+
+                auto h = std::fopen(f, mode);
+                if (!h) {
+                    return false;
+                }
+
+                const bool is_wide = sizeof(CharT) > 1;
+                auto ret = std::fwide(h, is_wide ? 1 : -1);
+                if ((is_wide && ret > 0) || (!is_wide && ret < 0) || ret == 0) {
+                    this->set_handle(h);
+                    return true;
+                }
+                return false;
+            }
+            /// Steal ownership
+            bool open(FILE* f)
+            {
+                SCN_EXPECT(!is_open());
+                if (std::ferror(f) != 0) {
+                    return false;
+                }
+                this->set_handle(f);
+                return true;
+            }
+
+            /// Close file
+            void close()
+            {
+                SCN_EXPECT(is_open());
+                this->sync();
+                std::fclose(this->handle());
+                this->set_handle(nullptr, false);
+            }
+
+            /// Is the file open
+            SCN_NODISCARD bool is_open() const
+            {
+                return this->valid();
+            }
+        };
+
+        using owning_file = basic_owning_file<char>;
+        using owning_wfile = basic_owning_file<wchar_t>;
+
+        SCN_CLANG_PUSH
+        SCN_CLANG_IGNORE("-Wexit-time-destructors")
+
+        // Avoid documentation issues: without this, Doxygen will think
+        // SCN_CLANG_PUSH is a part of the stdin_range declaration
+        namespace dummy {
+        }
+
+        /**
+         * Get a reference to the global stdin range
+         */
+        template <typename CharT>
+        basic_file<CharT>& stdin_range()
+        {
+            static auto f = basic_file<CharT>{stdin};
+            return f;
+        }
+        /**
+         * Get a reference to the global `char`-oriented stdin range
+         */
+        inline file& cstdin()
+        {
+            return stdin_range<char>();
+        }
+        /**
+         * Get a reference to the global `wchar_t`-oriented stdin range
+         */
+        inline wfile& wcstdin()
+        {
+            return stdin_range<wchar_t>();
+        }
+        SCN_CLANG_POP
+
+#endif
+
+#if 0
+
+        namespace detail {
         template <typename CharT>
         struct basic_file_iterator_access;
     }
@@ -541,6 +1053,8 @@ namespace scn {
         return stdin_range<wchar_t>();
     }
     SCN_CLANG_POP
+
+#endif
 
 #if 0
 
