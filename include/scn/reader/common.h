@@ -642,12 +642,14 @@ namespace scn {
                     for (auto it = s.begin(); it != s.end() && out_cmp(out);
                          ++it) {
                         if (pred(make_span(&*it, 1)) == pred_result_to_stop) {
+                            auto putback_start = it;
                             if (keep_final) {
                                 *out = *it;
                                 ++out;
+                                ++putback_start;
                             }
-                            auto e =
-                                putback_n(r, ranges::distance(it, s.end()));
+                            auto e = putback_n(
+                                r, ranges::distance(putback_start, s.end()));
                             if (!e) {
                                 return e;
                             }

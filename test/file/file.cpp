@@ -42,6 +42,38 @@ struct cfile_wrapper {
     FILE* f;
 };
 
+TEST_CASE("file range single characters") {
+    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+    scn::file file{cfile.f};
+
+    auto it = file.begin();
+    auto ch = *it;
+    CHECK(ch);
+    CHECK(ch.value() == '1');
+    ch = *it;
+    CHECK(ch.value() == '1');
+
+    ++it;
+    ch = *it;
+    CHECK(ch);
+    CHECK(ch.value() == '2');
+}
+
+TEST_CASE("file range")
+{
+    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+    scn::file file{cfile.f};
+
+    std::string dest;
+    auto out = std::back_inserter(dest);
+
+    for (auto ch : file) {
+        CHECK(ch);
+        *out++ = ch.value();
+    }
+    CHECK(dest == "123\nword another\n");
+}
+
 TEST_CASE_TEMPLATE("file", CharT, char, wchar_t)
 {
     cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
@@ -49,7 +81,20 @@ TEST_CASE_TEMPLATE("file", CharT, char, wchar_t)
 
     using string_type = std::basic_string<CharT>;
 
-    SUBCASE("basic")
+    SUBCASE("basic read")
+    {
+        std::basic_string<CharT> buffer;
+        auto out = std::back_inserter(buffer);
+
+        auto wrapped = scn::wrap(scn::prepare(file));
+        auto locale = scn::basic_locale_ref<CharT>{};
+        auto is_space = scn::detail::make_is_space_predicate(locale, false);
+        auto ret = scn::read_until_space(wrapped, out, is_space, false);
+
+        CHECK(ret);
+        CHECK(buffer == widen<CharT>("123"));
+    }
+    SUBCASE("basic scan")
     {
         int i;
         auto result = scn::scan_default(file, i);

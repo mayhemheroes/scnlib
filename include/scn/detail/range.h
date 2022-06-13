@@ -31,37 +31,6 @@ namespace scn {
     SCN_BEGIN_NAMESPACE
 
     namespace detail {
-        namespace _reset_begin_iterator {
-            struct fn {
-            private:
-                template <typename Iterator>
-                static auto impl(Iterator& it, priority_tag<1>) noexcept(
-                    noexcept(it.reset_begin_iterator()))
-                    -> decltype(it.reset_begin_iterator())
-                {
-                    return it.reset_begin_iterator();
-                }
-
-                template <typename Iterator>
-                static void impl(Iterator&, size_t, priority_tag<0>) noexcept
-                {
-                }
-
-            public:
-                template <typename Iterator>
-                auto operator()(Iterator& it) const
-                    noexcept(noexcept(fn::impl(it, priority_tag<1>{})))
-                        -> decltype(fn::impl(it, priority_tag<1>{}))
-                {
-                    return fn::impl(it, priority_tag<1>{});
-                }
-            };
-        }  // namespace _reset_begin_iterator
-        namespace {
-            static constexpr auto& reset_begin_iterator =
-                static_const<detail::_reset_begin_iterator::fn>::value;
-        }
-
         template <typename Range>
         struct reconstruct_tag {
         };

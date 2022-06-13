@@ -184,7 +184,7 @@ namespace scn {
         private:
             expected<CharT> do_get_at(std::ptrdiff_t i) override
             {
-                if (_should_read_more(i)) {
+                if (_should_read_more(i) || m_buffer.empty()) {
                     // no chars have been read
                     m_last_error = _get_more();
                     if (!m_last_error) {
@@ -202,7 +202,7 @@ namespace scn {
 
             std::ptrdiff_t do_current_index() const override
             {
-                return m_last_read_index + m_chars_in_past_buffers;
+                return m_final_read_index + m_chars_in_past_buffers;
             }
             bool do_is_current_at_end() const override
             {
@@ -216,7 +216,7 @@ namespace scn {
 
             error _read_single();
             error _read_line();
-            error _read_chars(std::size_t n);
+            error _read_chars(std::ptrdiff_t n);
 
             error _get_more();
 
@@ -224,8 +224,8 @@ namespace scn {
 
             void _reclaim_buffer()
             {
-                m_chars_in_past_buffers += m_last_read_index;
-                m_last_read_index = 0;
+                m_chars_in_past_buffers += m_final_read_index;
+                m_final_read_index = 0;
             }
 
             span<CharT> _get_buffer()
@@ -239,33 +239,33 @@ namespace scn {
 
             span<CharT> _get_buffer_for_reading()
             {
-                return _get_buffer().subspan(m_last_read_index);
+                return _get_buffer().subspan(m_final_read_index + 1);
             }
             span<const CharT> _get_buffer_for_reading() const
             {
-                return _get_buffer().subspan(m_last_read_index);
+                return _get_buffer().subspan(m_final_read_index + 1);
             }
 
-            CharT _get_char_at(std::size_t index) const
+            CharT _get_char_at(std::ptrdiff_t index) const
             {
                 return _get_buffer()[index - m_chars_in_past_buffers];
             }
-            bool _should_read_more(std::size_t index) const
+            bool _should_read_more(std::ptrdiff_t index) const
             {
-                return m_last_read_index < index - m_chars_in_past_buffers &&
+                return m_final_read_index < index - m_chars_in_past_buffers &&
                        !m_eof_reached;
             }
-            bool _is_at_end(std::size_t index) const
+            bool _is_at_end(std::ptrdiff_t index) const
             {
-                return m_last_read_index == index - m_chars_in_past_buffers &&
+                return m_final_read_index == index - m_chars_in_past_buffers &&
                        m_eof_reached;
             }
 
             std::basic_string<CharT> m_buffer{};
             FILE* m_file;
             error m_last_error{};
-            std::size_t m_chars_in_past_buffers{0};
-            std::size_t m_last_read_index{0};
+            std::ptrdiff_t m_chars_in_past_buffers{0};
+            std::ptrdiff_t m_final_read_index{-1};
             file_buffering m_buffering;
             bool m_eof_reached{false};
         };
@@ -338,7 +338,7 @@ namespace scn {
                 return e;
             }
             _get_buffer_for_reading().front() = ch;
-            ++m_last_read_index;
+            ++m_final_read_index;
             return {};
         }
 
@@ -355,7 +355,7 @@ namespace scn {
                     return e;
                 }
                 _get_buffer_for_reading().front() = ch;
-                ++m_last_read_index;
+                ++m_final_read_index;
                 if (ch == detail::ascii_widen<CharT>('\n')) {
                     break;
                 }
@@ -365,13 +365,13 @@ namespace scn {
 
         template <typename CharT>
         error basic_erased_range_impl_for_file_impl<CharT>::_read_chars(
-            std::size_t n)
+            std::ptrdiff_t n)
         {
             SCN_EXPECT(_get_buffer_for_reading().size() >= n);
 
             auto ret =
                 _file_read_multiple(m_file, _get_buffer_for_reading().first(n));
-            m_last_read_index += ret.first;
+            m_final_read_index += ret.first;
             return ret.second;
         }
 
@@ -398,6 +398,7 @@ namespace scn {
             if (!err) {
                 if (err.code() == error::end_of_range) {
                     m_eof_reached = true;
+                    return {};
                 }
                 else {
                     m_last_error = err;
