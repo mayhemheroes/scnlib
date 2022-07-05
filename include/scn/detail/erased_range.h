@@ -81,9 +81,9 @@ namespace scn {
             {
                 return do_current_index();
             }
-            bool is_current_at_end() const
+            bool is_index_at_end(std::ptrdiff_t i) const
             {
-                return do_is_current_at_end();
+                return do_is_index_at_end(i);
             }
 
             error advance_current(std::ptrdiff_t n)
@@ -99,7 +99,7 @@ namespace scn {
                 std::ptrdiff_t) const = 0;
 
             virtual std::ptrdiff_t do_current_index() const = 0;
-            virtual bool do_is_current_at_end() const = 0;
+            virtual bool do_is_index_at_end(std::ptrdiff_t) const = 0;
 
             virtual error do_advance_current(std::ptrdiff_t) = 0;
         };
@@ -210,7 +210,7 @@ namespace scn {
                 std::ptrdiff_t i) const override;
 
             std::ptrdiff_t do_current_index() const override;
-            bool do_is_current_at_end() const override;
+            bool do_is_index_at_end(std::ptrdiff_t i) const override;
 
             error do_advance_current(std::ptrdiff_t n) override;
 

@@ -191,6 +191,10 @@ namespace scn {
                         return m_last_error;
                     }
                 }
+                if (i > m_final_read_index && m_eof_reached) {
+                    // m_final_read_index = i;
+                    return error{error::end_of_range, "EOF"};
+                }
                 return _get_char_at(i);
             }
 
@@ -204,9 +208,9 @@ namespace scn {
             {
                 return m_final_read_index + m_chars_in_past_buffers;
             }
-            bool do_is_current_at_end() const override
+            bool do_is_index_at_end(std::ptrdiff_t i) const override
             {
-                return _is_at_end(do_current_index());
+                return _is_at_end(i);
             }
 
             error do_advance_current(std::ptrdiff_t i) override
@@ -224,8 +228,8 @@ namespace scn {
 
             void _reclaim_buffer()
             {
-                m_chars_in_past_buffers += m_final_read_index;
-                m_final_read_index = 0;
+                m_chars_in_past_buffers += m_final_read_index + 1;
+                m_final_read_index = -1;
             }
 
             span<CharT> _get_buffer()
@@ -246,9 +250,19 @@ namespace scn {
                 return _get_buffer().subspan(m_final_read_index + 1);
             }
 
+            span<CharT> _get_buffer_for_accessing()
+            {
+                return _get_buffer().first(detail::strlen(m_buffer.c_str()));
+            }
+            span<const CharT> _get_buffer_for_accessing() const
+            {
+                return _get_buffer().first(detail::strlen(m_buffer.c_str()));
+            }
+
             CharT _get_char_at(std::ptrdiff_t index) const
             {
-                return _get_buffer()[index - m_chars_in_past_buffers];
+                return _get_buffer_for_accessing()[index -
+                                                   m_chars_in_past_buffers];
             }
             bool _should_read_more(std::ptrdiff_t index) const
             {
@@ -257,7 +271,7 @@ namespace scn {
             }
             bool _is_at_end(std::ptrdiff_t index) const
             {
-                return m_final_read_index == index - m_chars_in_past_buffers &&
+                return m_final_read_index < index - m_chars_in_past_buffers &&
                        m_eof_reached;
             }
 
@@ -305,15 +319,13 @@ namespace scn {
             return {};
         }
 
-        template <typename CharT>
-        static std::pair<std::size_t, error> _file_read_multiple(
-            FILE* f,
-            span<CharT> buf)
+        static std::pair<std::size_t, error> _file_read_multiple(FILE* f,
+                                                                 span<char> buf)
         {
             SCN_EXPECT(f);
             SCN_EXPECT(!buf.empty());
 
-            auto ret = std::fread(buf.data(), sizeof(CharT), buf.size(), f);
+            auto ret = std::fread(buf.data(), 1, buf.size(), f);
             if (ret < buf.size()) {
                 if (std::feof(f) != 0) {
                     return {ret, {error::end_of_range, "EOF"}};
@@ -363,8 +375,8 @@ namespace scn {
             return {};
         }
 
-        template <typename CharT>
-        error basic_erased_range_impl_for_file_impl<CharT>::_read_chars(
+        template <>
+        error basic_erased_range_impl_for_file_impl<char>::_read_chars(
             std::ptrdiff_t n)
         {
             SCN_EXPECT(_get_buffer_for_reading().size() >= n);
@@ -373,6 +385,20 @@ namespace scn {
                 _file_read_multiple(m_file, _get_buffer_for_reading().first(n));
             m_final_read_index += ret.first;
             return ret.second;
+        }
+        template <>
+        error basic_erased_range_impl_for_file_impl<wchar_t>::_read_chars(
+            std::ptrdiff_t n)
+        {
+            SCN_EXPECT(_get_buffer_for_reading().size() >= n);
+
+            error e{};
+            auto it = _get_buffer_for_reading().begin();
+            for (; n != 0 && e; --n, (void)++it) {
+                e = _file_read_single(m_file, *it);
+                ++m_final_read_index;
+            }
+            return e;
         }
 
         template <typename CharT>

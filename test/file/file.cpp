@@ -29,10 +29,21 @@ static bool do_fgets(wchar_t* str, size_t count, std::FILE* f)
     return std::fgetws(str, static_cast<int>(count), f) != nullptr;
 }
 
+static void set_cfile_width(FILE* file, char)
+{
+    std::fwide(file, -1);
+}
+static void set_cfile_width(FILE* file, wchar_t)
+{
+    std::fwide(file, 1);
+}
+
+template <typename CharT>
 struct cfile_wrapper {
     cfile_wrapper(const char* file, const char* flags)
         : f{std::fopen(file, flags)}
     {
+        set_cfile_width(f, CharT{});
     }
     ~cfile_wrapper()
     {
@@ -42,8 +53,9 @@ struct cfile_wrapper {
     FILE* f;
 };
 
-TEST_CASE("file range single characters") {
-    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+TEST_CASE("file range single characters")
+{
+    cfile_wrapper<char> cfile{"./test/file/testfile.txt", "r"};
     scn::file file{cfile.f};
 
     auto it = file.begin();
@@ -59,24 +71,25 @@ TEST_CASE("file range single characters") {
     CHECK(ch.value() == '2');
 }
 
-TEST_CASE("file range")
+TEST_CASE_TEMPLATE("file range", CharT, char, wchar_t)
 {
-    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
-    scn::file file{cfile.f};
+    cfile_wrapper<CharT> cfile{"./test/file/testfile.txt", "r"};
+    scn::basic_file<CharT> file{cfile.f};
 
-    std::string dest;
+    std::basic_string<CharT> dest;
     auto out = std::back_inserter(dest);
 
-    for (auto ch : file) {
+    for (auto it = file.begin(); it != file.end(); ++it) {
+        auto ch = *it;
         CHECK(ch);
         *out++ = ch.value();
     }
-    CHECK(dest == "123\nword another\n");
+    CHECK(dest == widen<CharT>("123\nword another"));
 }
 
 TEST_CASE_TEMPLATE("file", CharT, char, wchar_t)
 {
-    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+    cfile_wrapper<CharT> cfile{"./test/file/testfile.txt", "r"};
     scn::basic_file<CharT> file{cfile.f};
 
     using string_type = std::basic_string<CharT>;
@@ -292,7 +305,7 @@ namespace scn {
 
 TEST_CASE("file usertype")
 {
-    cfile_wrapper cfile{"./test/file/testfile.txt", "r"};
+    cfile_wrapper<char> cfile{"./test/file/testfile.txt", "r"};
     scn::file file{cfile.f};
 
     SUBCASE("int_and_string")

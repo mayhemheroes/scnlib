@@ -140,9 +140,13 @@ namespace scn {
             return m_next_char_buffer_index;
         }
         template <typename StorageType, typename Range, typename CharT>
-        bool basic_erased_range_impl<StorageType, Range, CharT>::
-            do_is_current_at_end() const
+        bool
+        basic_erased_range_impl<StorageType, Range, CharT>::do_is_index_at_end(
+            std::ptrdiff_t i) const
         {
+            if (i < do_current_index()) {
+                return false;
+            }
             return m_next_to_read_from_source == ranges::end(m_range.get()) &&
                    m_next_char_buffer_index ==
                        static_cast<std::ptrdiff_t>(m_buffer.size());
@@ -283,8 +287,7 @@ namespace scn {
                 return true;
             }
             SCN_EXPECT(m_range->m_impl);
-            return m_range->m_impl->is_current_at_end() &&
-                   m_index == m_range->m_impl->current_index();
+            return m_range->m_impl->is_index_at_end(m_index);
         }
 
         mutable basic_erased_range<CharT>* m_range{nullptr};
